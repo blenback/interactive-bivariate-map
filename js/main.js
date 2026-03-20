@@ -7,7 +7,6 @@
  */
 
 import { drawLegend } from "./legend.js";
-import { initTooltip, showTooltip, hideTooltip } from "./tooltip.js";
 
 const { fromArrayBuffer } = window.GeoTIFF;
 
@@ -15,15 +14,14 @@ const { fromArrayBuffer } = window.GeoTIFF;
 // Configuration
 // ---------------------------------------------------------------------------
 const GROUPS = [
-  { id: "ES", label: "ES", tifUrl: "data/ES.tif", jsonUrl: "data/ES_palette_info.json" },
-  { id: "BD", label: "BD", tifUrl: "data/BD.tif", jsonUrl: "data/BD_palette_info.json" },
-  { id: "BD-ES", label: "BD-ES", tifUrl: "data/BD-ES.tif", jsonUrl: "data/BD-ES_palette_info.json" }
+  { id: "ES", label: "ES", tifUrl: "data/ES.tif", jsonUrl: "data/palette.json" },
+  { id: "BD", label: "BD", tifUrl: "data/BD.tif", jsonUrl: "data/palette.json" },
+  { id: "BD-ES", label: "BD-ES", tifUrl: "data/BD-ES.tif", jsonUrl: "data/palette.json" }
 ];
 
 const CONFIG = {
   mapSelector: "#map",
-  legendSelector: "#legend",
-  insightSelector: "#insight"
+  legendSelector: "#legend"
 };
 
 // ---------------------------------------------------------------------------
@@ -31,6 +29,9 @@ const CONFIG = {
 // ---------------------------------------------------------------------------
 let currentGroup = GROUPS[0].id;
 let currentSvg = null;
+let currentLegendSvg = null;
+let pinnedLegendClass = null;
+let currentClassAreasSqM = {};
 
 // Cache: groupId → { pixels, width, height, palette }
 const cache = new Map();
@@ -40,7 +41,6 @@ const cache = new Map();
 // ---------------------------------------------------------------------------
 async function init() {
   buildGroupToggle();
-  initTooltip();
   await loadAndRender();
 }
 
@@ -48,8 +48,6 @@ async function init() {
 // Load (if not cached) + render
 // ---------------------------------------------------------------------------
 async function loadAndRender() {
-  setText(CONFIG.insightSelector, "Loading…");
-
   try {
     if (!cache.has(currentGroup)) {
       await loadGroup(currentGroup);
@@ -76,10 +74,10 @@ async function loadGroup(groupId) {
   // Build 3×3 colour matrix from R's JSON
   // Keys "x-y": x = perf class (1–3, rows), y = var class (1–3, cols)
   // palette[x-1][y-1] → palette[perfIdx][varIdx]
-  const palette = [["","",""],["","",""],["","",""]];
+  const palette = [["", "", ""], ["", "", ""], ["", "", ""]];
   for (const [classKey, val] of Object.entries(paletteJson)) {
     const [x, y] = classKey.split("-").map(Number);
-    palette[x - 1][y - 1] = val.color;
+    palette[y - 1][x - 1] = val.color;
   }
 
   cache.set(groupId, { ...tifData, palette });
@@ -96,45 +94,28 @@ function render(groupId) {
   const { pixels, width, height, palette } = entry;
   const mapEl = document.querySelector(CONFIG.mapSelector);
   if (!mapEl) return;
+  mapEl.style.position = "relative";
   mapEl.innerHTML = "";
 
   // Re-draw legend with this group's exact palette
   setHTML(CONFIG.legendSelector, "");
-  drawLegend(CONFIG.legendSelector, {
+  currentLegendSvg = drawLegend(CONFIG.legendSelector, {
     labelA: "Performance",
-    labelB: "Variation",
+    labelB: "Stability",
     numClasses: 3,
     colors: palette,
+    selectedCell: pinnedLegendClass,
     onCellHover: (classA, classB) => highlightClass(groupId, classA, classB),
-    onCellLeave: () => highlightClass(groupId, null, null)
+    onCellLeave: () => highlightClass(groupId, null, null),
+    onCellClick: (classA, classB) => togglePinnedLegendClass(groupId, classA, classB)
   });
 
-  // Build canvas + SVG
-  const { canvas, pixelSize } = buildCanvas(pixels, width, height, palette, null);
-  currentSvg = buildSvg(canvas, pixels, width, height, pixelSize, mapEl);
+  const renderedImages = getRenderedImages(entry);
+  currentSvg = buildSvg(renderedImages.baseHref, renderedImages.canvasWidth, renderedImages.canvasHeight, mapEl);
 
-  // Insight counts
-  const counts = { stable: 0, volatile: 0, highPerf: 0, highVar: 0, lowVar: 0, total: 0 };
-  for (let i = 0; i < pixels.length; i++) {
-    const v = pixels[i];
-    if (v < 1 || v > 9) continue;
-    const perfClass = Math.ceil(v / 3);
-    const varClass = ((v - 1) % 3) + 1;
-    counts.total++;
-    if (perfClass === 3 && varClass === 1) counts.stable++;
-    if (perfClass === 1 && varClass === 3) counts.volatile++;
-    if (perfClass === 3) counts.highPerf++;
-    if (varClass === 3) counts.highVar++;
-    if (varClass === 1) counts.lowVar++;
-  }
-
-  setHTML(CONFIG.insightSelector, counts.stable > 0
-    ? `<span class="hl-teal-dark">${counts.stable} stable, high-performing pixels</span> ` +
-    `versus <span class="hl-accent">${counts.volatile} volatile, low-performing pixels</span>. ` +
-    `<span class="hl-teal">${counts.lowVar}</span> regions show low variation.`
-    : `<span class="hl-teal">${counts.highPerf} pixels</span> show high performance; ` +
-    `<span class="hl-accent">${counts.highVar}</span> show significant variation.`
-  );
+  const counts = summarisePixels(pixels, entry.cellAreaSqM);
+  currentClassAreasSqM = counts.classAreasSqM;
+  updateLegendSelection();
 }
 
 // ---------------------------------------------------------------------------
@@ -145,10 +126,65 @@ function highlightClass(groupId, classA, classB) {
   const entry = cache.get(groupId);
   if (!entry) return;
 
-  const { pixels, width, height, palette } = entry;
-  const highlight = classA !== null ? { classA, classB } : null;
-  const { canvas } = buildCanvas(pixels, width, height, palette, highlight);
-  currentSvg.select("image").attr("href", canvas.toDataURL());
+  const highlight = classA !== null
+    ? { classA, classB }
+    : pinnedLegendClass;
+  const renderedImages = getRenderedImages(entry);
+  const href = highlight === null
+    ? renderedImages.baseHref
+    : renderedImages.filteredHrefs[getHighlightKey(highlight)];
+  currentSvg.select(".zoom-layer image").attr("href", href);
+}
+
+function togglePinnedLegendClass(groupId, classA, classB) {
+  const isSamePinned = pinnedLegendClass !== null
+    && pinnedLegendClass.classA === classA
+    && pinnedLegendClass.classB === classB;
+
+  pinnedLegendClass = isSamePinned ? null : { classA, classB };
+  updateLegendSelection();
+  highlightClass(groupId, null, null);
+}
+
+function updateLegendSelection() {
+  if (!currentLegendSvg) return;
+
+  currentLegendSvg.selectAll(".legend-cell")
+    .attr("stroke", "transparent")
+    .attr("stroke-width", 0);
+
+  currentLegendSvg.selectAll(".legend-count").remove();
+
+  if (pinnedLegendClass === null) return;
+
+  const selectedCell = currentLegendSvg
+    .select(`.cell-${pinnedLegendClass.classB}-${pinnedLegendClass.classA}`);
+
+  selectedCell
+    .attr("stroke", "#2a2a2a")
+    .attr("stroke-width", 2);
+
+  const cellNode = selectedCell.node();
+  if (!cellNode) return;
+
+  const areaSqM = currentClassAreasSqM[getHighlightKey(pinnedLegendClass)] ?? 0;
+  const { x, y, width, height } = cellNode.getBBox();
+
+  currentLegendSvg
+    .select("g")
+    .append("text")
+    .attr("class", "legend-count")
+    .attr("x", x + (width / 2))
+    .attr("y", y + (height / 2) + 4)
+    .attr("text-anchor", "middle")
+    .attr("pointer-events", "none")
+    .style("font-size", "7px")
+    .style("font-weight", "700")
+    .style("fill", "#1f1f1f")
+    .style("paint-order", "stroke")
+    .style("stroke", "#ffffff")
+    .style("stroke-width", "2px")
+    .text(formatAreaLabel(areaSqM));
 }
 
 // ---------------------------------------------------------------------------
@@ -156,9 +192,8 @@ function highlightClass(groupId, classA, classB) {
 // ---------------------------------------------------------------------------
 function buildCanvas(pixels, width, height, palette, highlight) {
   const mapNode = document.querySelector(CONFIG.mapSelector);
-  const wrapper = mapNode?.closest(".map-wrapper") || mapNode || document.body;
-  const displayWidth = wrapper.clientWidth || 900;
-  const displayHeight = wrapper.clientHeight || 600;
+  const displayWidth = mapNode?.clientWidth || 900;
+  const displayHeight = mapNode?.clientHeight || 600;
 
   const pixelSize = Math.min(displayWidth / width, displayHeight / height);
   const canvasWidth = Math.round(width * pixelSize);
@@ -170,7 +205,7 @@ function buildCanvas(pixels, width, height, palette, highlight) {
   const rgbByValue = new Array(10);
   for (let v = 1; v <= 9; v++) {
     const perfIdx = Math.ceil(v / 3) - 1;  // x - 1
-    const varIdx  = (v - 1) % 3;           // y - 1
+    const varIdx = (v - 1) % 3;           // y - 1
     const hex = palette[perfIdx]?.[varIdx];
     rgbByValue[v] = hex ? hexToRgb(hex) : { r: 221, g: 216, b: 206 };
   }
@@ -192,7 +227,7 @@ function buildCanvas(pixels, width, height, palette, highlight) {
         let show = true;
         if (highlight !== null) {
           const perfIdx = Math.ceil(v / 3) - 1;
-          const varIdx  = (v - 1) % 3;
+          const varIdx = (v - 1) % 3;
           // legend: onCellHover(secondIdx=varIdx, firstIdx=perfIdx)
           // so highlight.classA = varIdx, highlight.classB = perfIdx
           show = (varIdx === highlight.classA && perfIdx === highlight.classB);
@@ -217,53 +252,143 @@ function buildCanvas(pixels, width, height, palette, highlight) {
 }
 
 // ---------------------------------------------------------------------------
-// SVG overlay (canvas image + transparent hover rects)
+// SVG overlay
 // ---------------------------------------------------------------------------
-function buildSvg(canvas, pixels, width, height, pixelSize, container) {
-  const canvasWidth = Math.round(width * pixelSize);
-  const canvasHeight = Math.round(height * pixelSize);
+function buildSvg(imageHref, canvasWidth, canvasHeight, container) {
+  const framePadding = 18;
+  const framedWidth = canvasWidth + (framePadding * 2);
+  const framedHeight = canvasHeight + (framePadding * 2);
 
   const svg = d3.select(container)
     .append("svg")
     .style("width", "100%")
     .style("height", "auto")
-    .attr("viewBox", `0 0 ${canvasWidth} ${canvasHeight}`)
+    .style("cursor", "grab")
+    .style("touch-action", "none")
+    .attr("viewBox", `0 0 ${framedWidth} ${framedHeight}`)
     .attr("preserveAspectRatio", "xMidYMid meet");
 
-  svg.append("image")
-    .attr("href", canvas.toDataURL())
-    .attr("width", canvasWidth)
-    .attr("height", canvasHeight);
+  const hitbox = svg.append("rect")
+    .attr("class", "zoom-hitbox")
+    .attr("width", framedWidth)
+    .attr("height", framedHeight)
+    .attr("fill", "transparent")
+    .style("pointer-events", "all");
 
-  const hoverData = [];
-  for (let i = 0; i < pixels.length; i++) {
-    const v = pixels[i];
-    if (v < 1 || v > 9) continue;
-    hoverData.push({
-      _col: i % width,
-      _row: Math.floor(i / width),
-      classA: Math.ceil(v / 3) - 1,
-      classB: (v - 1) % 3
-    });
+  const zoomLayer = svg.append("g")
+    .attr("class", "zoom-layer")
+    .attr("transform", `translate(${framePadding},${framePadding})`);
+
+  zoomLayer.append("image")
+    .attr("href", imageHref)
+    .attr("width", canvasWidth)
+    .attr("height", canvasHeight)
+    .style("pointer-events", "none");
+
+  let currentTransform = d3.zoomIdentity.translate(framePadding, framePadding);
+
+  function clampTransform(transform) {
+    const minX = Math.min(0, canvasWidth - (canvasWidth * transform.k));
+    const minY = Math.min(0, canvasHeight - (canvasHeight * transform.k));
+    const maxX = framePadding;
+    const maxY = framePadding;
+
+    return d3.zoomIdentity
+      .translate(
+        Math.max(minX, Math.min(maxX, transform.x)),
+        Math.max(minY, Math.min(maxY, transform.y))
+      )
+      .scale(transform.k);
   }
 
-  svg.selectAll(".pixel-overlay")
-    .data(hoverData)
-    .enter()
-    .append("rect")
-    .attr("class", "pixel-overlay")
-    .attr("data-class", d => `${d.classA}-${d.classB}`)
-    .attr("x", d => d._col * pixelSize)
-    .attr("y", d => d._row * pixelSize)
-    .attr("width", pixelSize)
-    .attr("height", pixelSize)
-    .style("fill", "transparent")
-    .style("cursor", "pointer")
-    .on("mouseenter", (event, d) => showTooltip(event, d))
-    .on("mousemove", (event, d) => showTooltip(event, d))
-    .on("mouseleave", () => hideTooltip());
+  const zoom = d3.zoom()
+    .filter((event) => {
+      if (event.type === "wheel" || event.type === "dblclick") return false;
+      return event.type.startsWith("touch");
+    })
+    .scaleExtent([1, 8])
+    .extent([[0, 0], [framedWidth, framedHeight]])
+    .on("zoom", (event) => {
+      currentTransform = clampTransform(event.transform);
+      zoomLayer.attr("transform", currentTransform);
+    });
+
+  svg.call(zoom);
+  svg.on("wheel.zoom", null);
+  svg.on("dblclick.zoom", null);
+  svg.call(zoom.transform, currentTransform);
+
+  let dragStartTransform = currentTransform;
+  hitbox.call(
+    d3.drag()
+      .subject((event) => ({ x: event.x, y: event.y }))
+      .on("start", () => {
+        dragStartTransform = currentTransform;
+        svg.style("cursor", "grabbing");
+      })
+      .on("drag", (event) => {
+        const nextTransform = d3.zoomIdentity
+          .translate(
+            dragStartTransform.x + event.x - event.subject.x,
+            dragStartTransform.y + event.y - event.subject.y
+          )
+          .scale(currentTransform.k);
+
+        svg.call(zoom.transform, clampTransform(nextTransform));
+      })
+      .on("end", () => {
+        svg.style("cursor", "grab");
+      })
+  );
+
+  buildZoomControls(container, svg, zoom);
 
   return svg;
+}
+
+function buildZoomControls(container, svg, zoom) {
+  container.querySelector(".zoom-controls")?.remove();
+
+  const controls = document.createElement("div");
+  controls.className = "zoom-controls";
+  controls.style.position = "absolute";
+  controls.style.top = "0.75rem";
+  controls.style.right = "0.75rem";
+  controls.style.display = "flex";
+  controls.style.flexDirection = "column";
+  controls.style.gap = "0.35rem";
+  controls.style.zIndex = "6";
+
+  const zoomInButton = createZoomButton("+", "Zoom in", () => {
+    svg.call(zoom.scaleBy, 1.35);
+  });
+
+  const zoomOutButton = createZoomButton("-", "Zoom out", () => {
+    svg.call(zoom.scaleBy, 1 / 1.35);
+  });
+
+  controls.appendChild(zoomInButton);
+  controls.appendChild(zoomOutButton);
+  container.appendChild(controls);
+}
+
+function createZoomButton(label, ariaLabel, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.setAttribute("aria-label", ariaLabel);
+  button.style.width = "2rem";
+  button.style.height = "2rem";
+  button.style.border = "1px solid var(--border)";
+  button.style.background = "rgba(255, 255, 255, 0.94)";
+  button.style.color = "var(--text)";
+  button.style.font = "600 1rem/1 var(--font)";
+  button.style.cursor = "pointer";
+  button.style.borderRadius = "3px";
+  button.style.boxShadow = "0 2px 6px rgba(0, 0, 0, 0.08)";
+  button.style.padding = "0";
+  button.addEventListener("click", onClick);
+  return button;
 }
 
 // ---------------------------------------------------------------------------
@@ -323,6 +448,7 @@ async function loadClassifiedTif(url) {
   const width = image.getWidth();
   const height = image.getHeight();
   const noDataValue = image.getGDALNoData();
+  const cellAreaSqM = getCellAreaSqM(image);
   const raw = (await image.readRasters({ samples: [0] }))[0];
 
   let validCount = 0;
@@ -333,7 +459,7 @@ async function loadClassifiedTif(url) {
     else { pixels[i] = v; validCount++; }
   }
 
-  return { pixels, width, height, validCount };
+  return { pixels, width, height, validCount, cellAreaSqM };
 }
 
 async function loadPaletteJson(url) {
@@ -353,6 +479,130 @@ function isNoData(value, noDataValue) {
   if (!isFinite(value)) return true;
   if (noDataValue != null && value === noDataValue) return true;
   return false;
+}
+
+function getCellAreaSqM(image) {
+  const fallbackCellSizeMeters = 100;
+  const fallbackAreaSqM = fallbackCellSizeMeters * fallbackCellSizeMeters;
+
+  const resolution = typeof image.getResolution === "function"
+    ? image.getResolution()
+    : null;
+  const fileDirectory = image.fileDirectory || {};
+  const modelPixelScale = Array.isArray(fileDirectory.ModelPixelScale)
+    ? fileDirectory.ModelPixelScale
+    : null;
+  const source = Array.isArray(resolution) && resolution.length >= 2
+    ? resolution
+    : modelPixelScale;
+
+  if (!Array.isArray(source) || source.length < 2) return fallbackAreaSqM;
+
+  const cellWidth = Math.abs(Number(source[0]));
+  const cellHeight = Math.abs(Number(source[1]));
+  if (!isFinite(cellWidth) || !isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) {
+    return fallbackAreaSqM;
+  }
+
+  return cellWidth * cellHeight;
+}
+
+function getRenderedImages(entry) {
+  const { pixels, width, height, palette } = entry;
+  const mapNode = document.querySelector(CONFIG.mapSelector);
+  const displayWidth = mapNode?.clientWidth || 900;
+  const displayHeight = mapNode?.clientHeight || 600;
+  const pixelSize = Math.min(displayWidth / width, displayHeight / height);
+  const canvasWidth = Math.round(width * pixelSize);
+  const canvasHeight = Math.round(height * pixelSize);
+  const renderKey = `${canvasWidth}x${canvasHeight}`;
+
+  if (entry.renderedImages?.key === renderKey) {
+    return entry.renderedImages;
+  }
+
+  const base = buildCanvas(pixels, width, height, palette, null);
+  const filteredHrefs = {};
+  for (let classB = 0; classB < 3; classB++) {
+    for (let classA = 0; classA < 3; classA++) {
+      const key = getHighlightKey({ classA, classB });
+      filteredHrefs[key] = buildCanvas(pixels, width, height, palette, { classA, classB }).canvas.toDataURL();
+    }
+  }
+
+  entry.renderedImages = {
+    key: renderKey,
+    canvasWidth,
+    canvasHeight,
+    baseHref: base.canvas.toDataURL(),
+    filteredHrefs
+  };
+
+  return entry.renderedImages;
+}
+
+function getHighlightKey({ classA, classB }) {
+  return `${classA}-${classB}`;
+}
+
+function decodeClassValue(value) {
+  return {
+    perfClass: Math.ceil(value / 3),
+    varClass: ((value - 1) % 3) + 1
+  };
+}
+
+function summarisePixels(pixels, cellAreaSqM) {
+  const counts = {
+    total: 0,
+    highPerformance: 0,
+    midPerformance: 0,
+    lowPerformance: 0,
+    highStability: 0,
+    midStability: 0,
+    lowStability: 0,
+    highPerfHighStability: 0,
+    lowPerfLowStability: 0,
+    classAreasSqM: {}
+  };
+
+  for (let i = 0; i < pixels.length; i++) {
+    const value = pixels[i];
+    if (value < 1 || value > 9) continue;
+
+    const { perfClass, varClass } = decodeClassValue(value);
+    const stabilityClass = 4 - varClass;
+    const classKey = getHighlightKey({ classA: varClass - 1, classB: perfClass - 1 });
+
+    counts.total++;
+    counts.classAreasSqM[classKey] = (counts.classAreasSqM[classKey] || 0) + cellAreaSqM;
+
+    if (perfClass === 3) counts.highPerformance++;
+    else if (perfClass === 2) counts.midPerformance++;
+    else counts.lowPerformance++;
+
+    if (stabilityClass === 3) counts.highStability++;
+    else if (stabilityClass === 2) counts.midStability++;
+    else counts.lowStability++;
+
+    if (perfClass === 3 && stabilityClass === 3) counts.highPerfHighStability++;
+    if (perfClass === 1 && stabilityClass === 1) counts.lowPerfLowStability++;
+  }
+
+  return counts;
+}
+
+function formatAreaLabel(areaSqM) {
+  if (!isFinite(areaSqM) || areaSqM <= 0) return "0 ha";
+  if (areaSqM >= 1_000_000) return `${formatCompactNumber(areaSqM / 1_000_000)} km²`;
+  if (areaSqM >= 10_000) return `${formatCompactNumber(areaSqM / 10_000)} ha`;
+  return `${formatCompactNumber(areaSqM)} m²`;
+}
+
+function formatCompactNumber(value) {
+  if (value >= 100) return Math.round(value).toLocaleString();
+  if (value >= 10) return value.toFixed(1).replace(/\.0$/, "");
+  return value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
 function hexToRgb(hex) {

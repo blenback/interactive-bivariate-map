@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bivariate Raster Map — Performance vs. Variation</title>
+  <title>Bivariate Raster Map — Performance vs. Stability</title>
 
   <!-- D3.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
@@ -79,7 +79,7 @@
       min-height: 0;
     }
 
-    /* --- Sidebar: legend on top, insight below --- */
+    /* --- Sidebar: legend + explainer --- */
     .sidebar {
       width: 190px;
       flex-shrink: 0;
@@ -153,6 +153,26 @@
       font-weight: 600;
     }
 
+    .how-to-read .hl-gray {
+      color: #8f8f8f;
+      font-weight: 600;
+    }
+
+    .how-to-read .hl-gold {
+      color: #968901;
+      font-weight: 600;
+    }
+
+    .how-to-read .hl-blue {
+      color: #488fb0;
+      font-weight: 600;
+    }
+
+    .how-to-read .hl-green {
+      color: #4c6e01;
+      font-weight: 600;
+    }
+
     .how-to-read p {
       margin: 0.1rem 0;
     }
@@ -161,6 +181,61 @@
       margin-top: 0.35rem;
       color: var(--text);
       font-size: 0.65rem;
+    }
+
+    .how-to-read .how-dimension strong {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .how-to-read .info-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .how-to-read .info-icon {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: help;
+    }
+
+    .how-to-read .info-box {
+      position: absolute;
+      left: calc(100% + 0.45rem);
+      top: 50%;
+      transform: translateY(-50%);
+      width: 220px;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--muted);
+      font-size: 0.66rem;
+      line-height: 1.45;
+      border-radius: 3px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+      z-index: 5;
+    }
+
+    .how-to-read .info-wrap:hover .info-box,
+    .how-to-read .info-wrap:focus-within .info-box {
+      opacity: 1;
+      visibility: visible;
     }
 
     .how-to-read .how-example {
@@ -176,39 +251,29 @@
       color: var(--text);
     }
 
-    /* --- Insight — narrative tension from data --- */
-    .insight {
-      font-size: 0.72rem;
-      line-height: 1.55;
-      color: #4a463e;
-    }
-
-    .insight .hl-teal {
-      color: var(--teal);
-      font-weight: 600;
-    }
-
-    .insight .hl-accent {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
     /* --- Map: fills remaining space --- */
     .map-wrapper {
       flex: 1;
       min-width: 0;
       min-height: 0;
       position: relative;
+      padding: 0.4rem;
     }
 
     #map {
       width: 100%;
       height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
     }
 
     #map svg {
       width: 100%;
-      height: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
       display: block;
     }
 
@@ -372,12 +437,12 @@
 <body>
   <div class="container">
     <header>
-      <h1>Bivariate Raster Map</h1>
-      <p class="subtitle">Performance vs. Variation </p>
+      <h1>Robustness of Ecosystem Services and Biodiversity under future conditions</h1>
+      <p class="subtitle">Performance vs. Stability </p>
     </header>
 
     <div class="main-area">
-      <!-- Sidebar: Legend + How to Read + Insight -->
+      <!-- Sidebar: Legend + How to Read -->
       <div class="sidebar">
         <!-- Legend -->
         <div id="legend"></div>
@@ -386,39 +451,45 @@
         <div class="how-to-read">
           <span class="how-title">How to interpret</span>
 
-          <p class="how-hover"><b>Performance</b> is calculated on a per-pixel basis as the mean of the cumulative sum
-            of the change in ES and/or BD over all future time points for all scenarios. The use of the cumulative sum
-            captures both positive and negative changes, thus a high value of Performance indicates that pixels
-            generally display positive changes in ES and/or BD across all scenarios.</p>
-          <p class="how-hover"><b>Stability</b> is calculated using the Undesirable Deviation Metric which is the sum of
-            the deviation (regret) away from the median value of the cumulative sum of the change in ES and/or BD for
-            all instances below the median. In simple terms Stability captures the extent of negative variations in ES
-            and/or BD across the scenarios, a higher value of stability indicates less negative variation with low
-            values indicating more negative variation. </p>
           <div class="how-dimension">
-            <strong>X-axis: Performance</strong>
-            <p><span class="hl-teal">●</span> Low to <span class="hl-accent">●</span> High</p>
+            <strong>
+              X-axis: Performance
+              <span class="info-wrap">
+                <span class="info-icon" tabindex="0" aria-label="Performance information">I</span>
+                <span class="info-box">Performance is calculated on a per-pixel basis as the mean of the cumulative
+                  sum of the change in ES and/or BD over all future time points for all scenarios. The use of the
+                  cumulative sum captures both positive and negative changes, thus a high value of Performance
+                  indicates that pixels generally display positive changes in ES and/or BD across all scenarios.</span>
+              </span>
+            </strong>
+            <p>Low on the left, high on the right.</p>
           </div>
 
           <div class="how-dimension">
-            <strong>Y-axis: Stability</strong>
-            <p>Low to High stability</p>
+            <strong>
+              Y-axis: Stability
+              <span class="info-wrap">
+                <span class="info-icon" tabindex="0" aria-label="Stability information">I</span>
+                <span class="info-box">Stability is calculated using the Undesirable Deviation Metric, which sums the
+                  deviation (regret) away from the median value of the cumulative change in ES and/or BD for all
+                  instances below the median. In simple terms, it captures the extent of negative variation across
+                  scenarios, with higher values indicating greater variation.</span>
+              </span>
+            </strong>
+            <p>Low at the bottom, high at the top.</p>
           </div>
 
           <p class="how-example">
-            <span class="hl-teal-dark">■ Stable, low-variability</span> High performance (top-right).
+            <span class="hl-gray">Grey</span> pixels are those that displayed low performance and low stability, while
+            <span class="hl-green">Dark Green</span> were those that displayed high performance and high stability.
           </p>
 
           <p class="how-example">
-            <span class="hl-accent">■ Volatile, high-variability</span> Low performance(top-left).
+            <span class="hl-gold">Gold</span> indicates low performance but high stability, while
+            <span class="hl-blue">blue</span> indicates high performance but low stability.
           </p>
 
           <p class="how-hover">Hover over pixels in the map for details.</p>
-        </div>
-
-        <!-- Insight narrative -->
-        <div class="insight" id="insight">
-          Loading data...
         </div>
       </div>
 
