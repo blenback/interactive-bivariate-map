@@ -14,9 +14,9 @@ const { fromArrayBuffer } = window.GeoTIFF;
 // Configuration
 // ---------------------------------------------------------------------------
 const GROUPS = [
-  { id: "ES", label: "ES", tifUrl: "data/ES.tif", jsonUrl: "data/palette.json" },
-  { id: "BD", label: "BD", tifUrl: "data/BD.tif", jsonUrl: "data/palette.json" },
-  { id: "BD-ES", label: "BD-ES", tifUrl: "data/BD-ES.tif", jsonUrl: "data/palette.json" }
+  { id: "ES", label: "Ecosystem Services", tifUrl: "data/ES.tif", jsonUrl: "data/palette.json" },
+  { id: "BD", label: "Biodiversity", tifUrl: "data/BD.tif", jsonUrl: "data/palette.json" },
+  { id: "BD-ES", label: "Biodiversity & Ecosystem Services", tifUrl: "data/BD-ES.tif", jsonUrl: "data/palette.json" }
 ];
 
 const CONFIG = {
