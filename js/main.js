@@ -22,7 +22,8 @@ const GROUPS = [
 const CONFIG = {
   mapSelector: "#map",
   legendSelector: "#legend",
-  renderOversample: 3
+  renderOversample: 3,
+  assetVersion: "12"
 };
 
 // ---------------------------------------------------------------------------
@@ -491,7 +492,7 @@ function buildGroupToggle() {
 // GeoTIFF loader
 // ---------------------------------------------------------------------------
 async function loadClassifiedTif(url) {
-  const response = await fetch(url);
+  const response = await fetch(withAssetVersion(url), { cache: "no-store" });
   if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`);
 
   const tiff = await fromArrayBuffer(await response.arrayBuffer());
@@ -514,7 +515,7 @@ async function loadClassifiedTif(url) {
 }
 
 async function loadPaletteJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(withAssetVersion(url), { cache: "no-store" });
   if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`);
   return response.json();
 }
@@ -525,6 +526,10 @@ async function loadPaletteJson(url) {
 function getEl(sel) { try { return document.querySelector(sel); } catch { return null; } }
 function setText(sel, txt) { const el = getEl(sel); if (el) el.textContent = txt; }
 function setHTML(sel, html) { const el = getEl(sel); if (el) el.innerHTML = html; }
+function withAssetVersion(url) {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${CONFIG.assetVersion}`;
+}
 
 function isNoData(value, noDataValue) {
   if (!isFinite(value)) return true;
