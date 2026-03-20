@@ -1,8 +1,11 @@
 /**
- * legend.js — Leyenda bivariada matricial 3x3
+ * legend-raster.js — Bivariate legend (3×3 matrix)
  *
- * Celdas con flechas de eje + etiquetas descriptivas en esquinas
- * para guiar la lectura sin ambigüedad.
+ * Layout matches R's biscale output exactly:
+ *   Rows    = Performance, high at top (row 0) → low at bottom (row n-1)
+ *   Columns = Variation,   low at left (col 0) → high at right (col n-1)
+ *
+ * palette[varIdx][perfIdx] as built from R's palette JSON ("perf-var" keys).
  */
 
 import { BIVARIATE_COLORS, N } from "./bivariate.js";
@@ -10,13 +13,11 @@ import { BIVARIATE_COLORS, N } from "./bivariate.js";
 const CELL = 34;
 const GAP = 1.5;
 
-/**
- * Renderiza la leyenda bivariada.
- * @param {string} selector - Selector CSS del contenedor
- * @param {Object} opts - { labelA, labelB, onCellHover, onCellLeave }
- */
-function drawLegend(selector, { labelA, labelB, onCellHover, onCellLeave } = {}) {
-  const size = N * (CELL + GAP) - GAP;
+function drawLegend(selector, { labelA, labelB, numClasses, colors, onCellHover, onCellLeave } = {}) {
+  const n = numClasses || N;
+  const palette = colors || BIVARIATE_COLORS;
+
+  const size = n * (CELL + GAP) - GAP;
   const margin = { top: 20, right: 6, bottom: 60, left: 28 };
   const w = size + margin.left + margin.right;
   const h = size + margin.top + margin.bottom;
@@ -30,50 +31,66 @@ function drawLegend(selector, { labelA, labelB, onCellHover, onCellLeave } = {})
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Celdas de color — fila 0 (arriba) = B alto, fila 2 (abajo) = B bajo
-  for (let row = 0; row < N; row++) {
-    for (let col = 0; col < N; col++) {
-      const bIdx = N - 1 - row;
+  // rows = first digit  (high at top = row 0 → firstIdx = n-1, low at bottom)
+  // cols = second digit (low at left = col 0 → secondIdx = 0, high at right)
+  // palette[firstIdx][secondIdx] — matches JSON key "(firstDigit)-(secondDigit)"
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const firstIdx = n - 1 - row;  // row 0 → firstIdx 2 (high), row 2 → firstIdx 0 (low)
+      const secondIdx = col;           // col 0 → secondIdx 0 (low), col 2 → secondIdx 2 (high)
+      const fill = (palette[firstIdx] && palette[firstIdx][secondIdx]) || "#ddd8ce";
+
       g.append("rect")
         .attr("x", col * (CELL + GAP))
         .attr("y", row * (CELL + GAP))
         .attr("width", CELL)
         .attr("height", CELL)
-        .attr("fill", BIVARIATE_COLORS[bIdx][col])
-        .attr("class", `legend-cell cell-${col}-${bIdx}`)
+        .attr("fill", fill)
+        .attr("class", `legend-cell cell-${firstIdx}-${secondIdx}`)
         .style("cursor", "pointer")
-        .on("mouseenter", () => onCellHover?.(col, bIdx))
+        .on("mouseenter", () => onCellHover?.(secondIdx, firstIdx))
         .on("mouseleave", () => onCellLeave?.());
     }
   }
 
-  // --- Axis labels with arrows (→ and ↑) inline ---
+  // X-axis = Performance →
   g.append("text")
     .attr("x", size / 2).attr("y", size + 16)
     .attr("text-anchor", "middle")
     .attr("class", "legend-label")
-    .text((labelA || "Variable A") + " \u2192");
+    .text((labelA || "Performance") + " →");
 
+  // Y-axis = ↑ Variation
   g.append("text")
     .attr("x", -(size / 2)).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("transform", "rotate(-90)")
     .attr("class", "legend-label")
-    .text("\u2191 " + (labelB || "Variable B"));
+    .text("→ " + (labelB || "Variation"));
 
-  // --- Diagonal corner labels: the two extremes ---
+  // Corner labels
   g.append("text")
     .attr("x", -2).attr("y", size + 28)
     .attr("class", "legend-corner")
-    .text("Low, falling");
+    .text("Low perf");
 
   g.append("text")
-    .attr("x", size + 2).attr("y", -8)
+    .attr("x", size + 2).attr("y", size + 28)
     .attr("text-anchor", "end")
     .attr("class", "legend-corner")
-    .text("High, rising");
+    .text("High perf");
 
-  // --- No data indicator ---
+  g.append("text")
+    .attr("x", -4).attr("y", -8)
+    .attr("class", "legend-corner")
+    .text("High stability");
+
+  g.append("text")
+    .attr("x", -2).attr("y", size + 12)
+    .attr("class", "legend-corner")
+    .text("Low stability");
+
+  // No data swatch
   const ndY = size + 40;
   g.append("rect")
     .attr("x", 0).attr("y", ndY)
@@ -81,8 +98,7 @@ function drawLegend(selector, { labelA, labelB, onCellHover, onCellLeave } = {})
     .attr("fill", "#ddd8ce").attr("stroke", "#cdc8be").attr("stroke-width", 0.5);
   g.append("text")
     .attr("x", 16).attr("y", ndY + 10)
-    .attr("class", "legend-label")
-    .style("text-transform", "none")
+    .attr("class", "legend-nodata")
     .text("No data");
 
   return svg;

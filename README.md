@@ -33,11 +33,11 @@ All JavaScript logic mirrors your R implementation:
 ## File Structure
 
 ```
-├── index-raster.html              # HTML entry point (open in browser)
-├── main-raster.js                 # Orchestrator: loads data, renders, controls flow
-├── bivariate-raster.js            # Classification logic: winsorize, normalize, classify
-├── legend-raster.js               # Legend rendering + cell interactivity
-├── tooltip-raster.js              # Hover tooltips
+├── index.html              # HTML entry point (open in browser)
+├── js/main.js                 # Orchestrator: loads data, renders, controls flow
+├── js/bivariate.js            # Classification logic: winsorize, normalize, classify
+├── js/legend.js               # Legend rendering + cell interactivity
+├── js/tooltip.js              # Hover tooltips
 ├── export_raster_data.R           # R helper: export rasters to CSV for web
 └── data/
     └── raster_bivariate_data.csv  # Pre-processed pixel data (from R export)
@@ -80,7 +80,7 @@ x,y,Performance,Var,classA,classB
 Place files in a web-accessible directory:
 ```
 my-project/
-├── index-raster.html
+├── index.html
 ├── *.js files
 ├── data/
 │   └── raster_bivariate_data.csv
@@ -89,7 +89,7 @@ my-project/
 Start a local server (Python):
 ```bash
 python3 -m http.server 8000
-# Visit http://localhost:8000/index-raster.html
+# Visit http://localhost:8000/index.html
 ```
 
 Or use Node.js:
@@ -99,13 +99,13 @@ npx http-server
 
 ### 3. Open in Browser
 
-Navigate to `http://localhost:8000/index-raster.html`
+Navigate to `http://localhost:8000/index.html`
 
 ---
 
 ## Configuration
 
-Edit `CONFIG` object in `main-raster.js`:
+Edit `CONFIG` object in `js/main.js`:
 
 ```javascript
 const CONFIG = {
@@ -174,7 +174,7 @@ Variation   ┌─────────┬─────────┬─�
 - **Top-right** (high performance, high variation): Mixed (orange-blue)
 - **Bottom-right** (high performance, low variation): Gold
 
-To change colors, edit `BIVARIATE_COLORS` in `bivariate-raster.js`.
+To change colors, edit `BIVARIATE_COLORS` in `js/bivariate.js`.
 
 ---
 
@@ -243,7 +243,7 @@ else class = 2
 
 ### Change Number of Classes
 
-Edit `N` in `bivariate-raster.js`:
+Edit `N` in `js/bivariate.js`:
 
 ```javascript
 const N = 4;  // 4×4 matrix instead of 3×3
@@ -264,7 +264,7 @@ bi_pal(pal = "BlueGold", dim = 4)
 
 ### Adjust Winsorization Bounds
 
-Edit percentiles in `main-raster.js`:
+Edit percentiles in `js/main.js`:
 
 ```javascript
 const { breaks, classified } = classifyRasterBivariate(
@@ -278,7 +278,7 @@ const { breaks, classified } = classifyRasterBivariate(
 
 ### Custom Canvas Rendering
 
-The canvas method supports custom pixel sizes and transformations. See `renderCanvasMap()` in `main-raster.js` for details.
+The canvas method supports custom pixel sizes and transformations. See `renderCanvasMap()` in `js/main.js` for details.
 
 ---
 
@@ -312,7 +312,7 @@ The canvas method supports custom pixel sizes and transformations. See `renderCa
 
 - Ensure D3.js is loaded (check Network tab in DevTools)
 - Check that `#legend` div exists in HTML
-- Verify `drawLegend()` is called in `main-raster.js`
+- Verify `drawLegend()` is called in `js/main.js`
 
 ### Pixels are not interactive
 
@@ -353,7 +353,7 @@ To load GeoTIFFs directly (instead of pre-processed CSV):
    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.1/dist/geotiff.min.js"></script>
    ```
 
-2. Load and parse in `main-raster.js`:
+2. Load and parse in `js/main.js`:
    ```javascript
    const response = await fetch("data/performance.tif");
    const arrayBuffer = await response.arrayBuffer();

@@ -1,216 +1,373 @@
 /**
- * main.js — Bivariate choropleth map orchestrator
+ * js/main.js — Bivariate raster map
  *
- * Flow:
- * 1. Load TopoJSON (NUTS2) + CSV (EDGAR data) in parallel
- * 2. Join by nuts_id, classify bivariate (quantiles 3x3)
- * 3. Draw map + legend + tooltips + annotations + insight
- *
- * Sources:
- * - EDGAR JRC v2024, GHG NUTS2 (DOI: 10.2905/D67EEDA8-C03E-4421-95D0-0ADC460B9658)
- * - Eurostat demo_r_d2jan (population 2023)
- * - Eurostat/GISCO Nuts2json (NUTS 2021 geometries)
+ * Loads pre-classified TIFs (pixel values 1–9) and palette JSONs from R.
+ * Three groups: ES | BD | BD-ES — no scaling/classification selectors.
+ * All groups are lazily loaded and cached after first selection.
  */
 
-import { bivariateClassify } from "./bivariate.js?v=10";
-import { drawLegend } from "./legend.js?v=10";
-import { initTooltip, showTooltip, hideTooltip } from "./tooltip.js?v=10";
+import { drawLegend } from "./legend.js";
+import { initTooltip, showTooltip, hideTooltip } from "./tooltip.js";
 
-const TOPO_URL = "https://raw.githubusercontent.com/eurostat/Nuts2json/master/pub/v2/2021/4326/20M/2.json";
-const DATA_URL = "data/bivariate_data.csv";
+const { fromArrayBuffer } = window.GeoTIFF;
 
-const REQUIRED_ID = "nuts_id";
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+const GROUPS = [
+  { id: "ES", label: "ES", tifUrl: "data/ES.tif", jsonUrl: "data/ES_palette_info.json" },
+  { id: "BD", label: "BD", tifUrl: "data/BD.tif", jsonUrl: "data/BD_palette_info.json" },
+  { id: "BD-ES", label: "BD-ES", tifUrl: "data/BD-ES.tif", jsonUrl: "data/BD-ES_palette_info.json" }
+];
 
+const CONFIG = {
+  mapSelector: "#map",
+  legendSelector: "#legend",
+  insightSelector: "#insight"
+};
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let currentGroup = GROUPS[0].id;
+let currentSvg = null;
+
+// Cache: groupId → { pixels, width, height, palette }
+const cache = new Map();
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
 async function init() {
-  const [topo, csvRaw] = await Promise.all([
-    d3.json(TOPO_URL),
-    d3.csv(DATA_URL, d3.autoType)
-  ]);
-
-  if (!csvRaw?.length) throw new Error("CSV empty or unreachable");
-  if (!topo?.objects) throw new Error("Invalid TopoJSON");
-
-  const cols = Object.keys(csvRaw[0]);
-  const VAR_A = cols.find(c => /per.?capita/i.test(c));
-  const VAR_B = cols.find(c => /pct.?change/i.test(c));
-  if (!VAR_A || !VAR_B) throw new Error(`Bivariate columns not found. Available: ${cols.join(", ")}`);
-  if (!cols.includes(REQUIRED_ID)) throw new Error(`Column '${REQUIRED_ID}' not found`);
-
-  // --- Bivariate classification ---
-  const { breaksA, breaksB, classified } = bivariateClassify(csvRaw, VAR_A, VAR_B);
-  const dataMap = new Map(classified.map(d => [d[REQUIRED_ID], d]));
-
-  // --- Key data points ---
-  const increasing = classified.filter(d => d[VAR_B] > 0);
-  const highAndGrowing = classified.filter(d => d.classA === 2 && d.classB === 2);
-  const maxIncrease = classified.reduce((a, b) => b[VAR_B] > a[VAR_B] ? b : a);
-  const maxReduction = classified.reduce((a, b) => b[VAR_B] < a[VAR_B] ? b : a);
-  const maxPerCapita = classified.reduce((a, b) => b[VAR_A] > a[VAR_A] ? b : a);
-
-  // --- Narrative insight ---
-  document.getElementById("insight").innerHTML =
-    `<span class="hl-accent">${increasing.length} regions increased</span> emissions; ` +
-    `${highAndGrowing.length} were already top emitters. ` +
-    `From ${maxReduction.name} ` +
-    `(<span class="hl-teal">${maxReduction[VAR_B].toFixed(0)}%</span>) to ${maxIncrease.name} ` +
-    `(<span class="hl-accent">+${maxIncrease[VAR_B].toFixed(0)}%</span>), the transition is uneven.`;
-
-  // --- Prepare geometries ---
-  const objectKey = Object.keys(topo.objects).find(k =>
-    topo.objects[k].geometries?.some(g => g.properties?.id?.length === 4)
-  ) || Object.keys(topo.objects)[0];
-
-  const geojson = topojson.feature(topo, topo.objects[objectKey]);
-
-  // --- Draw map — maximize space ---
-  const container = document.getElementById("map");
-  const wrapper = container.closest(".map-wrapper");
-  const width = wrapper.clientWidth || wrapper.getBoundingClientRect().width || 900;
-  const height = wrapper.clientHeight || wrapper.getBoundingClientRect().height || 600;
-
-  const svg = d3.select("#map")
-    .append("svg")
-    .attr("viewBox", `0 0 ${width} ${height}`)
-    .attr("preserveAspectRatio", "xMidYMin meet");
-
-  // Fit projection to continental EU only (exclude overseas territories)
-  // Canaries, Azores, Madeira, French DOMs push the bbox too wide → tiny map
-  const continental = {
-    type: "FeatureCollection",
-    features: geojson.features.filter(f => {
-      const [lon, lat] = d3.geoCentroid(f);
-      return lon > -12 && lon < 35 && lat > 34 && lat < 72;
-    })
-  };
-
-  const projection = d3.geoConicConformal()
-    .center([10, 52])
-    .rotate([-10, 0])
-    .parallels([35, 65])
-    .fitSize([width, height], continental);
-
-  const path = d3.geoPath(projection);
-
-  // Country borders
-  const cntrKey = Object.keys(topo.objects).find(k =>
-    topo.objects[k].geometries?.some(g => g.properties?.id?.length === 2)
-  );
-  if (cntrKey) {
-    svg.append("g").attr("class", "countries")
-      .selectAll("path")
-      .data(topojson.feature(topo, topo.objects[cntrKey]).features)
-      .join("path")
-      .attr("d", path)
-      .attr("fill", "none")
-      .attr("stroke", "#9a958c")
-      .attr("stroke-width", 0.8);
-  }
-
-  // NUTS2 regions
-  initTooltip({ keyA: VAR_A, keyB: VAR_B });
-
-  svg.append("g").attr("class", "regions")
-    .selectAll("path")
-    .data(geojson.features)
-    .join("path")
-    .attr("d", path)
-    .attr("fill", d => {
-      const record = dataMap.get(d.properties.id);
-      return record ? record.color : "#ddd8ce";
-    })
-    .attr("stroke", "#eae6de")
-    .attr("stroke-width", 0.3)
-    .attr("class", d => {
-      const record = dataMap.get(d.properties.id);
-      return record ? `region cell-${record.classA}-${record.classB}` : "region no-data";
-    })
-    .on("mouseenter", (event, d) => {
-      const record = dataMap.get(d.properties.id);
-      if (record) {
-        d3.select(event.currentTarget).attr("stroke", "#2a2a2a").attr("stroke-width", 1.5);
-        showTooltip(event, record);
-      }
-    })
-    .on("mousemove", (event, d) => {
-      const record = dataMap.get(d.properties.id);
-      if (record) showTooltip(event, record);
-    })
-    .on("mouseleave", (event) => {
-      d3.select(event.currentTarget).attr("stroke", "#eae6de").attr("stroke-width", 0.3);
-      hideTooltip();
-    });
-
-  // --- Annotations — each placed in clear open space ---
-  const annoGroup = svg.append("g").attr("class", "annotations");
-
-  // Kýpros (SE) → right into Mediterranean sea
-  // Dytiki Makedonia (N Greece) → down-right, separated from Kýpros
-  // Groningen (NL north) → left-up into North Sea empty area
-  const annoDefs = [
-    { record: maxIncrease, type: "increase",
-      fmt: r => `${r.name}: +${r[VAR_B].toFixed(0)}%`,
-      why: "Transport & tourism rebound",
-      ox: 65, oy: -25 },
-    { record: maxReduction, type: "reduction",
-      fmt: r => `${r.name}: ${r[VAR_B].toFixed(0)}%`,
-      why: "Lignite plant shutdowns",
-      ox: 55, oy: 75 },
-    { record: maxPerCapita, type: "percapita",
-      fmt: r => `${r.name}: ${r[VAR_A].toFixed(0)} t/cap`,
-      why: "Europe\u2019s largest gas field",
-      ox: -120, oy: -70 }
-  ];
-
-  annoDefs.forEach(({ record, type, fmt, why, ox, oy }) => {
-    const feat = geojson.features.find(f => f.properties.id === record[REQUIRED_ID]);
-    if (!feat) return;
-    const [cx, cy] = path.centroid(feat);
-    if (isNaN(cx)) return;
-
-    const labelX = Math.max(50, Math.min(width - 140, cx + ox));
-    const labelY = Math.max(16, Math.min(height - 12, cy + oy));
-
-    annoGroup.append("line")
-      .attr("class", `annotation-line annotation-line-${type}`)
-      .attr("x1", cx).attr("y1", cy)
-      .attr("x2", labelX).attr("y2", labelY);
-
-    annoGroup.append("text")
-      .attr("class", `annotation annotation-${type}`)
-      .attr("x", labelX + 4).attr("y", labelY + 4)
-      .text(fmt(record));
-
-    annoGroup.append("text")
-      .attr("class", `annotation-why annotation-why-${type}`)
-      .attr("x", labelX + 4).attr("y", labelY + 16)
-      .text(why);
-  });
-
-  // --- Legend ---
-  drawLegend("#legend", {
-    labelA: "GHG per capita (t)",
-    labelB: "Emission change (%)",
-    onCellHover(classA, classB) {
-      svg.selectAll(".region")
-        .transition().duration(150)
-        .style("opacity", function () {
-          return this.classList.contains(`cell-${classA}-${classB}`) ? 1 : 0.15;
-        });
-    },
-    onCellLeave() {
-      svg.selectAll(".region")
-        .transition().duration(150)
-        .style("opacity", 1);
-    }
-  });
-
-  // --- Metadata inline in footer ---
-  document.getElementById("meta").textContent =
-    `${classified.length} NUTS2 · EU-27 · Per cap. breaks: ${breaksA.map(b => b.toFixed(1)).join(", ")} t · Change: ${breaksB.map(b => b.toFixed(1)).join(", ")}%`;
+  buildGroupToggle();
+  initTooltip();
+  await loadAndRender();
 }
 
-init().catch(err => {
-  console.error("Error loading data:", err);
-  document.getElementById("map").innerHTML =
-    `<p class="error" style="color:#c24e80">Error: ${err.message}</p>`;
-});
+// ---------------------------------------------------------------------------
+// Load (if not cached) + render
+// ---------------------------------------------------------------------------
+async function loadAndRender() {
+  setText(CONFIG.insightSelector, "Loading…");
+
+  try {
+    if (!cache.has(currentGroup)) {
+      await loadGroup(currentGroup);
+    }
+    render(currentGroup);
+  } catch (err) {
+    console.error(`[${currentGroup}] Error:`, err);
+    setHTML(CONFIG.mapSelector, `<p class="error">Error loading ${currentGroup}: ${err.message}</p>`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fetch + cache one group
+// ---------------------------------------------------------------------------
+async function loadGroup(groupId) {
+  const group = GROUPS.find(g => g.id === groupId);
+  console.log(`[${groupId}] Fetching…`);
+
+  const [tifData, paletteJson] = await Promise.all([
+    loadClassifiedTif(group.tifUrl),
+    loadPaletteJson(group.jsonUrl)
+  ]);
+
+  // Build 3×3 colour matrix from R's JSON
+  // Keys "x-y": x = perf class (1–3, rows), y = var class (1–3, cols)
+  // palette[x-1][y-1] → palette[perfIdx][varIdx]
+  const palette = [["","",""],["","",""],["","",""]];
+  for (const [classKey, val] of Object.entries(paletteJson)) {
+    const [x, y] = classKey.split("-").map(Number);
+    palette[x - 1][y - 1] = val.color;
+  }
+
+  cache.set(groupId, { ...tifData, palette });
+  console.log(`[${groupId}] Cached — ${tifData.width}×${tifData.height}, ${tifData.validCount} valid pixels`);
+}
+
+// ---------------------------------------------------------------------------
+// Render from cache
+// ---------------------------------------------------------------------------
+function render(groupId) {
+  const entry = cache.get(groupId);
+  if (!entry) return;
+
+  const { pixels, width, height, palette } = entry;
+  const mapEl = document.querySelector(CONFIG.mapSelector);
+  if (!mapEl) return;
+  mapEl.innerHTML = "";
+
+  // Re-draw legend with this group's exact palette
+  setHTML(CONFIG.legendSelector, "");
+  drawLegend(CONFIG.legendSelector, {
+    labelA: "Performance",
+    labelB: "Variation",
+    numClasses: 3,
+    colors: palette,
+    onCellHover: (classA, classB) => highlightClass(groupId, classA, classB),
+    onCellLeave: () => highlightClass(groupId, null, null)
+  });
+
+  // Build canvas + SVG
+  const { canvas, pixelSize } = buildCanvas(pixels, width, height, palette, null);
+  currentSvg = buildSvg(canvas, pixels, width, height, pixelSize, mapEl);
+
+  // Insight counts
+  const counts = { stable: 0, volatile: 0, highPerf: 0, highVar: 0, lowVar: 0, total: 0 };
+  for (let i = 0; i < pixels.length; i++) {
+    const v = pixels[i];
+    if (v < 1 || v > 9) continue;
+    const perfClass = Math.ceil(v / 3);
+    const varClass = ((v - 1) % 3) + 1;
+    counts.total++;
+    if (perfClass === 3 && varClass === 1) counts.stable++;
+    if (perfClass === 1 && varClass === 3) counts.volatile++;
+    if (perfClass === 3) counts.highPerf++;
+    if (varClass === 3) counts.highVar++;
+    if (varClass === 1) counts.lowVar++;
+  }
+
+  setHTML(CONFIG.insightSelector, counts.stable > 0
+    ? `<span class="hl-teal-dark">${counts.stable} stable, high-performing pixels</span> ` +
+    `versus <span class="hl-accent">${counts.volatile} volatile, low-performing pixels</span>. ` +
+    `<span class="hl-teal">${counts.lowVar}</span> regions show low variation.`
+    : `<span class="hl-teal">${counts.highPerf} pixels</span> show high performance; ` +
+    `<span class="hl-accent">${counts.highVar}</span> show significant variation.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Legend highlight — re-render canvas with non-matching pixels dimmed
+// ---------------------------------------------------------------------------
+function highlightClass(groupId, classA, classB) {
+  if (!currentSvg) return;
+  const entry = cache.get(groupId);
+  if (!entry) return;
+
+  const { pixels, width, height, palette } = entry;
+  const highlight = classA !== null ? { classA, classB } : null;
+  const { canvas } = buildCanvas(pixels, width, height, palette, highlight);
+  currentSvg.select("image").attr("href", canvas.toDataURL());
+}
+
+// ---------------------------------------------------------------------------
+// Canvas renderer
+// ---------------------------------------------------------------------------
+function buildCanvas(pixels, width, height, palette, highlight) {
+  const mapNode = document.querySelector(CONFIG.mapSelector);
+  const wrapper = mapNode?.closest(".map-wrapper") || mapNode || document.body;
+  const displayWidth = wrapper.clientWidth || 900;
+  const displayHeight = wrapper.clientHeight || 600;
+
+  const pixelSize = Math.min(displayWidth / width, displayHeight / height);
+  const canvasWidth = Math.round(width * pixelSize);
+  const canvasHeight = Math.round(height * pixelSize);
+
+  // Pre-compute RGB for all 9 class values
+  // v = (x-1)*3 + y  →  x = ceil(v/3) = perfIdx+1,  y = (v-1)%3+1 = varIdx+1
+  // palette[perfIdx][varIdx]
+  const rgbByValue = new Array(10);
+  for (let v = 1; v <= 9; v++) {
+    const perfIdx = Math.ceil(v / 3) - 1;  // x - 1
+    const varIdx  = (v - 1) % 3;           // y - 1
+    const hex = palette[perfIdx]?.[varIdx];
+    rgbByValue[v] = hex ? hexToRgb(hex) : { r: 221, g: 216, b: 206 };
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.createImageData(canvasWidth, canvasHeight);
+  const buf = imgData.data;
+
+  for (let cy = 0; cy < canvasHeight; cy++) {
+    for (let cx = 0; cx < canvasWidth; cx++) {
+      const v = pixels[Math.floor(cy / pixelSize) * width + Math.floor(cx / pixelSize)];
+      const idx = (cy * canvasWidth + cx) * 4;
+
+      if (v >= 1 && v <= 9) {
+        let show = true;
+        if (highlight !== null) {
+          const perfIdx = Math.ceil(v / 3) - 1;
+          const varIdx  = (v - 1) % 3;
+          // legend: onCellHover(secondIdx=varIdx, firstIdx=perfIdx)
+          // so highlight.classA = varIdx, highlight.classB = perfIdx
+          show = (varIdx === highlight.classA && perfIdx === highlight.classB);
+        }
+        if (show) {
+          const rgb = rgbByValue[v];
+          buf[idx] = rgb.r;
+          buf[idx + 1] = rgb.g;
+          buf[idx + 2] = rgb.b;
+          buf[idx + 3] = 255;
+        } else {
+          buf[idx] = 210; buf[idx + 1] = 206; buf[idx + 2] = 200; buf[idx + 3] = 255;
+        }
+      } else {
+        buf[idx] = 221; buf[idx + 1] = 216; buf[idx + 2] = 206; buf[idx + 3] = 255;
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return { canvas, pixelSize };
+}
+
+// ---------------------------------------------------------------------------
+// SVG overlay (canvas image + transparent hover rects)
+// ---------------------------------------------------------------------------
+function buildSvg(canvas, pixels, width, height, pixelSize, container) {
+  const canvasWidth = Math.round(width * pixelSize);
+  const canvasHeight = Math.round(height * pixelSize);
+
+  const svg = d3.select(container)
+    .append("svg")
+    .style("width", "100%")
+    .style("height", "auto")
+    .attr("viewBox", `0 0 ${canvasWidth} ${canvasHeight}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  svg.append("image")
+    .attr("href", canvas.toDataURL())
+    .attr("width", canvasWidth)
+    .attr("height", canvasHeight);
+
+  const hoverData = [];
+  for (let i = 0; i < pixels.length; i++) {
+    const v = pixels[i];
+    if (v < 1 || v > 9) continue;
+    hoverData.push({
+      _col: i % width,
+      _row: Math.floor(i / width),
+      classA: Math.ceil(v / 3) - 1,
+      classB: (v - 1) % 3
+    });
+  }
+
+  svg.selectAll(".pixel-overlay")
+    .data(hoverData)
+    .enter()
+    .append("rect")
+    .attr("class", "pixel-overlay")
+    .attr("data-class", d => `${d.classA}-${d.classB}`)
+    .attr("x", d => d._col * pixelSize)
+    .attr("y", d => d._row * pixelSize)
+    .attr("width", pixelSize)
+    .attr("height", pixelSize)
+    .style("fill", "transparent")
+    .style("cursor", "pointer")
+    .on("mouseenter", (event, d) => showTooltip(event, d))
+    .on("mousemove", (event, d) => showTooltip(event, d))
+    .on("mouseleave", () => hideTooltip());
+
+  return svg;
+}
+
+// ---------------------------------------------------------------------------
+// Group toggle (header)
+// ---------------------------------------------------------------------------
+function buildGroupToggle() {
+  const header = document.querySelector("header");
+  const nav = document.createElement("div");
+  nav.className = "group-toggle";
+
+  GROUPS.forEach(group => {
+    const btn = document.createElement("button");
+    btn.textContent = group.label;
+    btn.dataset.id = group.id;
+    btn.className = "ctrl-btn" + (group.id === currentGroup ? " active" : "");
+    btn.addEventListener("click", () => {
+      if (group.id === currentGroup) return;
+      currentGroup = group.id;
+      nav.querySelectorAll(".ctrl-btn").forEach(b =>
+        b.classList.toggle("active", b.dataset.id === group.id));
+      loadAndRender();
+    });
+    nav.appendChild(btn);
+  });
+
+  header.appendChild(nav);
+
+  if (!document.getElementById("controls-style")) {
+    const style = document.createElement("style");
+    style.id = "controls-style";
+    style.textContent = `
+      .group-toggle { display: flex; gap: 0.35rem; margin-top: 0.5rem; }
+      .ctrl-btn {
+        font-family: inherit; font-size: 0.72rem; font-weight: 600;
+        letter-spacing: 0.04em; text-transform: uppercase;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid var(--border); background: transparent;
+        color: var(--muted); cursor: pointer; border-radius: 2px;
+        transition: background 0.12s, color 0.12s;
+      }
+      .ctrl-btn:hover  { background: var(--border); color: var(--text); }
+      .ctrl-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GeoTIFF loader
+// ---------------------------------------------------------------------------
+async function loadClassifiedTif(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`);
+
+  const tiff = await fromArrayBuffer(await response.arrayBuffer());
+  const image = await tiff.getImage();
+  const width = image.getWidth();
+  const height = image.getHeight();
+  const noDataValue = image.getGDALNoData();
+  const raw = (await image.readRasters({ samples: [0] }))[0];
+
+  let validCount = 0;
+  const pixels = new Uint8Array(width * height);
+  for (let i = 0; i < raw.length; i++) {
+    const v = raw[i];
+    if (isNoData(v, noDataValue) || v < 1 || v > 9) { pixels[i] = 0; }
+    else { pixels[i] = v; validCount++; }
+  }
+
+  return { pixels, width, height, validCount };
+}
+
+async function loadPaletteJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`);
+  return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+function getEl(sel) { try { return document.querySelector(sel); } catch { return null; } }
+function setText(sel, txt) { const el = getEl(sel); if (el) el.textContent = txt; }
+function setHTML(sel, html) { const el = getEl(sel); if (el) el.innerHTML = html; }
+
+function isNoData(value, noDataValue) {
+  if (!isFinite(value)) return true;
+  if (noDataValue != null && value === noDataValue) return true;
+  return false;
+}
+
+function hexToRgb(hex) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) }
+    : { r: 221, g: 216, b: 206 };
+}
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+
+export { init };

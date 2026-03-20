@@ -1,0 +1,38 @@
+{
+  "1-1": {
+    "color": "#d3d3d3",
+    "interpretation": "Low Performance, Low Variation"
+  },
+  "1-2": {
+    "color": "#8fb1c2",
+    "interpretation": "Low Performance, Medium Variation"
+  },
+  "1-3": {
+    "color": "#488fb0",
+    "interpretation": "Low Performance, High Variation"
+  },
+  "2-1": {
+    "color": "#d8bd75",
+    "interpretation": "Medium Performance, Low Variation"
+  },
+  "2-2": {
+    "color": "#929f6c",
+    "interpretation": "Medium Performance, Medium Variation"
+  },
+  "2-3": {
+    "color": "#498062",
+    "interpretation": "Medium Performance, High Variation"
+  },
+  "3-1": {
+    "color": "#dea301",
+    "interpretation": "High Performance, Low Variation"
+  },
+  "3-2": {
+    "color": "#968901",
+    "interpretation": "High Performance, Medium Variation"
+  },
+  "3-3": {
+    "color": "#4c6e01",
+    "interpretation": "High Performance, High Variation"
+  }
+}
