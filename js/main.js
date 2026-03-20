@@ -21,7 +21,8 @@ const GROUPS = [
 
 const CONFIG = {
   mapSelector: "#map",
-  legendSelector: "#legend"
+  legendSelector: "#legend",
+  renderOversample: 3
 };
 
 // ---------------------------------------------------------------------------
@@ -111,7 +112,12 @@ function render(groupId) {
   });
 
   const renderedImages = getRenderedImages(entry);
-  currentSvg = buildSvg(renderedImages.baseHref, renderedImages.canvasWidth, renderedImages.canvasHeight, mapEl);
+  currentSvg = buildSvg(
+    renderedImages.baseHref,
+    renderedImages.canvasWidth,
+    renderedImages.canvasHeight,
+    mapEl
+  );
 
   const counts = summarisePixels(pixels, entry.cellAreaSqM);
   currentClassAreasSqM = counts.classAreasSqM;
@@ -194,8 +200,7 @@ function buildCanvas(pixels, width, height, palette, highlight) {
   const mapNode = document.querySelector(CONFIG.mapSelector);
   const displayWidth = mapNode?.clientWidth || 900;
   const displayHeight = mapNode?.clientHeight || 600;
-
-  const pixelSize = Math.min(displayWidth / width, displayHeight / height);
+  const pixelSize = Math.min(displayWidth / width, displayHeight / height) * CONFIG.renderOversample;
   const canvasWidth = Math.round(width * pixelSize);
   const canvasHeight = Math.round(height * pixelSize);
 
@@ -258,65 +263,104 @@ function buildSvg(imageHref, canvasWidth, canvasHeight, container) {
   const framePadding = 18;
   const framedWidth = canvasWidth + (framePadding * 2);
   const framedHeight = canvasHeight + (framePadding * 2);
+  const mapPadding = 6.4;
+  const availableWidth = Math.max(0, (container.clientWidth || framedWidth) - (mapPadding * 2));
+  const availableHeight = Math.max(0, (container.clientHeight || framedHeight) - (mapPadding * 2));
+  const renderScale = Math.min(availableWidth / framedWidth, availableHeight / framedHeight);
+  const renderedWidth = framedWidth * renderScale;
+  const renderedHeight = framedHeight * renderScale;
+  const offsetLeft = mapPadding + ((availableWidth - renderedWidth) / 2);
+  const offsetTop = mapPadding;
 
   const svg = d3.select(container)
     .append("svg")
-    .style("width", "100%")
-    .style("height", "auto")
+    .style("position", "absolute")
+    .style("left", `${offsetLeft}px`)
+    .style("top", `${offsetTop}px`)
+    .style("width", `${renderedWidth}px`)
+    .style("height", `${renderedHeight}px`)
     .style("cursor", "grab")
     .style("touch-action", "none")
     .attr("viewBox", `0 0 ${framedWidth} ${framedHeight}`)
-    .attr("preserveAspectRatio", "xMidYMid meet");
+    .attr("preserveAspectRatio", "xMidYMin meet");
 
   const hitbox = svg.append("rect")
     .attr("class", "zoom-hitbox")
-    .attr("width", framedWidth)
-    .attr("height", framedHeight)
+    .attr("x", framePadding)
+    .attr("y", framePadding)
+    .attr("width", canvasWidth)
+    .attr("height", canvasHeight)
     .attr("fill", "transparent")
     .style("pointer-events", "all");
 
+  const defs = svg.append("defs");
+  defs.append("clipPath")
+    .attr("id", "map-clip")
+    .append("rect")
+    .attr("x", framePadding)
+    .attr("y", framePadding)
+    .attr("width", canvasWidth)
+    .attr("height", canvasHeight);
+
+  svg.append("rect")
+    .attr("x", framePadding)
+    .attr("y", framePadding)
+    .attr("width", canvasWidth)
+    .attr("height", canvasHeight)
+    .attr("fill", "#ddd8ce")
+    .style("pointer-events", "none");
+
   const zoomLayer = svg.append("g")
     .attr("class", "zoom-layer")
-    .attr("transform", `translate(${framePadding},${framePadding})`);
+    .attr("clip-path", "url(#map-clip)");
 
   zoomLayer.append("image")
     .attr("href", imageHref)
+    .attr("x", framePadding)
+    .attr("y", framePadding)
     .attr("width", canvasWidth)
     .attr("height", canvasHeight)
     .style("pointer-events", "none");
 
-  let currentTransform = d3.zoomIdentity.translate(framePadding, framePadding);
+  let currentTransform = { x: 0, y: 0, k: 1 };
 
   function clampTransform(transform) {
-    const minX = Math.min(0, canvasWidth - (canvasWidth * transform.k));
-    const minY = Math.min(0, canvasHeight - (canvasHeight * transform.k));
-    const maxX = framePadding;
-    const maxY = framePadding;
+    const nextK = Math.max(1, Math.min(8, transform.k));
+    const minX = canvasWidth - (canvasWidth * nextK);
+    const maxX = 0;
+    const minY = canvasHeight - (canvasHeight * nextK);
+    const maxY = 0;
 
-    return d3.zoomIdentity
-      .translate(
-        Math.max(minX, Math.min(maxX, transform.x)),
-        Math.max(minY, Math.min(maxY, transform.y))
-      )
-      .scale(transform.k);
+    return {
+      x: Math.max(minX, Math.min(maxX, transform.x)),
+      y: Math.max(minY, Math.min(maxY, transform.y)),
+      k: nextK
+    };
   }
 
-  const zoom = d3.zoom()
-    .filter((event) => {
-      if (event.type === "wheel" || event.type === "dblclick") return false;
-      return event.type.startsWith("touch");
-    })
-    .scaleExtent([1, 8])
-    .extent([[0, 0], [framedWidth, framedHeight]])
-    .on("zoom", (event) => {
-      currentTransform = clampTransform(event.transform);
-      zoomLayer.attr("transform", currentTransform);
+  function applyTransform() {
+    zoomLayer.attr(
+      "transform",
+      `translate(${currentTransform.x},${currentTransform.y}) scale(${currentTransform.k})`
+    );
+  }
+
+  function zoomBy(factor) {
+    const nextK = Math.max(1, Math.min(8, currentTransform.k * factor));
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+    const scaleRatio = nextK / currentTransform.k;
+
+    currentTransform = clampTransform({
+      x: centerX - ((centerX - currentTransform.x) * scaleRatio),
+      y: centerY - ((centerY - currentTransform.y) * scaleRatio),
+      k: nextK
     });
 
-  svg.call(zoom);
-  svg.on("wheel.zoom", null);
-  svg.on("dblclick.zoom", null);
-  svg.call(zoom.transform, currentTransform);
+    applyTransform();
+  }
+
+  applyTransform();
 
   let dragStartTransform = currentTransform;
   hitbox.call(
@@ -327,49 +371,56 @@ function buildSvg(imageHref, canvasWidth, canvasHeight, container) {
         svg.style("cursor", "grabbing");
       })
       .on("drag", (event) => {
-        const nextTransform = d3.zoomIdentity
-          .translate(
-            dragStartTransform.x + event.x - event.subject.x,
-            dragStartTransform.y + event.y - event.subject.y
-          )
-          .scale(currentTransform.k);
-
-        svg.call(zoom.transform, clampTransform(nextTransform));
+        currentTransform = clampTransform({
+          x: dragStartTransform.x + event.x - event.subject.x,
+          y: dragStartTransform.y + event.y - event.subject.y,
+          k: dragStartTransform.k
+        });
+        applyTransform();
       })
       .on("end", () => {
         svg.style("cursor", "grab");
       })
   );
 
-  buildZoomControls(container, svg, zoom);
+  buildZoomControls(container, offsetLeft, offsetTop, renderedWidth, framePadding, renderScale, zoomBy);
 
   return svg;
 }
 
-function buildZoomControls(container, svg, zoom) {
-  container.querySelector(".zoom-controls")?.remove();
+function buildZoomControls(container, offsetLeft, offsetTop, renderedWidth, framePadding, renderScale, onZoom) {
+  container.querySelector(".zoom-controls-overlay")?.remove();
+  const frameInset = framePadding * renderScale;
+
+  const overlay = document.createElement("div");
+  overlay.className = "zoom-controls-overlay";
+  overlay.style.position = "absolute";
+  overlay.style.inset = "0";
+  overlay.style.pointerEvents = "none";
+  overlay.style.zIndex = "6";
 
   const controls = document.createElement("div");
   controls.className = "zoom-controls";
   controls.style.position = "absolute";
-  controls.style.top = "0.75rem";
-  controls.style.right = "0.75rem";
+  controls.style.top = `${offsetTop + frameInset + 8}px`;
+  controls.style.left = `${offsetLeft + renderedWidth - frameInset - 32}px`;
   controls.style.display = "flex";
   controls.style.flexDirection = "column";
   controls.style.gap = "0.35rem";
-  controls.style.zIndex = "6";
+  controls.style.pointerEvents = "auto";
 
   const zoomInButton = createZoomButton("+", "Zoom in", () => {
-    svg.call(zoom.scaleBy, 1.35);
+    onZoom(1.35);
   });
 
   const zoomOutButton = createZoomButton("-", "Zoom out", () => {
-    svg.call(zoom.scaleBy, 1 / 1.35);
+    onZoom(1 / 1.35);
   });
 
   controls.appendChild(zoomInButton);
   controls.appendChild(zoomOutButton);
-  container.appendChild(controls);
+  overlay.appendChild(controls);
+  container.appendChild(overlay);
 }
 
 function createZoomButton(label, ariaLabel, onClick) {
@@ -512,7 +563,7 @@ function getRenderedImages(entry) {
   const mapNode = document.querySelector(CONFIG.mapSelector);
   const displayWidth = mapNode?.clientWidth || 900;
   const displayHeight = mapNode?.clientHeight || 600;
-  const pixelSize = Math.min(displayWidth / width, displayHeight / height);
+  const pixelSize = Math.min(displayWidth / width, displayHeight / height) * CONFIG.renderOversample;
   const canvasWidth = Math.round(width * pixelSize);
   const canvasHeight = Math.round(height * pixelSize);
   const renderKey = `${canvasWidth}x${canvasHeight}`;
