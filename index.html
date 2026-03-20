@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bivariate Map — GHG Emissions &amp; Climate Transition in the EU</title>
+  <link rel="stylesheet" href="css/style.css?v=16">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Emissions &amp; climate transition<br>in Europe</h1>
+      <p class="subtitle">
+        Bivariate choropleth: GHG per capita (2023) &times; emission change (2013&ndash;2023), NUTS2 regions (sub-national statistical areas)
+      </p>
+    </header>
+
+    <div class="main-area">
+      <aside class="sidebar">
+        <div id="legend"></div>
+        <div class="how-to-read">
+          <span class="how-title">How to read this map</span>
+          <p>Each region&rsquo;s color tells you <strong>two things</strong>:</p>
+          <p class="how-dimension"><strong>The color</strong> &mdash; are emissions going up or down?</p>
+          <p><span class="hl-teal">&block;</span> Teal &rarr; emissions are <strong>falling</strong></p>
+          <p><span class="hl-accent">&block;</span> Magenta &rarr; emissions are <strong>rising</strong></p>
+          <p><span class="hl-muted">&block;</span> Mauve &rarr; <strong>little change</strong></p>
+          <p class="how-dimension"><strong>The shade</strong> &mdash; how much does it emit today?</p>
+          <p>Lighter = low emissions per person</p>
+          <p>Darker = high emissions per person</p>
+          <p class="how-example">Example: <span class="hl-teal-dark">dark teal</span> = a big emitter, but improving.</p>
+          <p class="how-hover">Hover any region for exact figures.</p>
+        </div>
+        <p id="insight" class="insight"></p>
+      </aside>
+      <div class="map-wrapper">
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <footer class="sources">
+      <span id="meta" class="meta-inline"></span>
+      <span class="sep">&middot;</span>
+      EDGAR JRC v2024
+      (DOI: <a href="https://doi.org/10.2905/D67EEDA8-C03E-4421-95D0-0ADC460B9658" target="_blank">10.2905/D67EEDA8&hellip;</a>) &middot;
+      Eurostat demo_r_d2jan &middot; GISCO Nuts2json &middot;
+      CC BY 4.0 &middot;
+      <span class="note">EDGAR gridded data downscaled to NUTS2 via spatial allocation. ES/IT/FR include micro-state emissions (Andorra, San Marino, Monaco). Some regions lack data.</span>
+      <span class="credit">Design by Yusnelkis Milan&eacute;s Guisado</span>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+  <script type="module" src="js/main.js?v=21"></script>
+
+</body>
+</html>

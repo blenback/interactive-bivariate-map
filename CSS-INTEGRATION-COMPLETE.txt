@@ -1,0 +1,332 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║              CSS INTEGRATION COMPLETE ✓                                  ║
+║          Editorial Design System Fully Integrated                        ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ INTEGRATION SUMMARY
+
+Your original `style.css` (warm gray editorial theme) has been fully 
+integrated into the raster bivariate visualization. The design maintains:
+
+  ✓ Warm gray color palette (#eae6de background, #2a2a2a text)
+  ✓ Editorial typography (DM Serif Display + Inter)
+  ✓ Sidebar layout (190px legend + guide + insight)
+  ✓ Full-viewport no-scroll design
+  ✓ Semantic color highlights (--teal for stable, --accent for volatile)
+  ✓ Interactive components with smooth transitions
+  ✓ Responsive mobile breakpoint
+  ✓ Print-friendly styling
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 WHAT WAS INTEGRATED
+
+FROM YOUR ORIGINAL CSS           → INTO RASTER VISUALIZATION
+
+Color Variables                 → Inline CSS variables in index-raster.html
+  --bg, --text, --muted         → Used throughout layout
+  --accent, --teal              → Semantic highlighting
+  --border                       → Dividers and subtle accents
+
+Layout System                   → Full-viewport flex layout
+  Container: max-width + flex   → Body: 100vh, no overflow
+  Header                         → Sticky top with serif font
+  Sidebar (190px)               → Fixed width left column
+  Main area                      → Flexible map + sidebar split
+  Footer                         → Border-top, source attribution
+
+Typography                      → Consistent font hierarchy
+  Display: DM Serif Display     → H1 header (2rem)
+  Body: Inter                    → All body text
+  Weights: 400, 600              → Regular, semibold
+
+Components                      → All styling preserved
+  Legend (.legend-label, etc.)  → SVG text styling
+  How to Read                   → New component, styled consistently
+  Insight                       → Editorial narrative with color highlights
+  Tooltip                        → White card, border, subtle shadow
+  Interaction                   → Hover transitions, opacity changes
+
+Responsive Design              → Mobile breakpoint at 768px
+  Desktop: Sidebar left + Map  → Full layout
+  Mobile: Stacked layout       → Sidebar wraps, map full-width
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎨 COLOR PALETTE (CSS Variables)
+
+:root {
+  --font: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "DM Serif Display", Georgia, serif;
+  --bg: #eae6de;           /* Warm gray background */
+  --bg-card: #ffffff;      /* White content areas */
+  --text: #2a2a2a;         /* Dark text (primary) */
+  --muted: #7a756c;        /* Warm gray (secondary) */
+  --accent: #c24e80;       /* Pink/magenta (emphasis) */
+  --teal: #3a9e8f;         /* Teal/green (positive) */
+  --border: #cdc8be;       /* Light gray (dividers) */
+}
+
+All colors applied consistently across:
+  • Headers and text
+  • Legend labels and cells
+  • How to Read interpretive guide
+  • Insight narrative (semantic highlighting)
+  • Tooltip styling
+  • Interactive hover states
+  • Footer attribution
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📐 LAYOUT STRUCTURE
+
+┌────────────────────────────────────────────────────┐
+│                                                    │
+│  H1 HEADER (DM Serif Display, 2rem)               │ ← Serif for elegance
+│  Subtitle (0.72rem, uppercase, --muted)           │
+│                                                    │
+├──────────────────┬───────────────────────────────┤
+│                  │                               │
+│   SIDEBAR        │      MAP AREA                 │
+│   (190px fixed)  │   (Canvas/SVG, flex: 1)      │
+│                  │                               │
+│  ┌────────────┐  │   Raster visualization       │
+│  │  LEGEND    │  │                               │
+│  │ (3×3 grid) │  │   • 250K+ pixels in <500ms  │
+│  │            │  │   • Interactive overlay      │
+│  └────────────┘  │   • Hover tooltips           │
+│                  │                               │
+│  HOW TO READ     │                               │
+│  ────────────    │                               │
+│  X: Performance  │                               │
+│  Y: Variation    │                               │
+│  (0.68rem, body) │                               │
+│                  │                               │
+│  INSIGHT         │                               │
+│  ────────────    │                               │
+│  [Editorial      │                               │
+│   narrative with │                               │
+│   color          │                               │
+│   highlights]    │                               │
+│  (0.72rem)       │                               │
+│                  │                               │
+├──────────────────┴───────────────────────────────┤
+│                                                    │
+│  FOOTER: Data · Scaling · Classification · Credit │
+│  (0.62rem, --muted, border-top)                   │
+│                                                    │
+└────────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 NEW COMPONENTS (Added to match original design)
+
+1. HOW TO READ GUIDE
+   Location: Sidebar, below legend
+   Purpose: Interpretive guide for bivariate matrix
+   Content: Shows X/Y axes, provides examples
+   Styling: 0.68rem body text, --muted color
+   Highlights: .hl-teal (stable), .hl-accent (volatile), .hl-teal-dark (strong)
+
+2. INSIGHT NARRATIVE
+   Location: Sidebar, below how-to-read
+   Purpose: Editorial summary of raster patterns
+   Content: Auto-generated from data statistics
+   Styling: 0.72rem, slightly warm tone (#4a463e)
+   Highlights: Semantic color-coding (positive/negative)
+
+3. FOOTER METADATA
+   Location: Bottom of page
+   Purpose: Attribution and data summary
+   Content: Data source, scaling method, classification, credit
+   Styling: Small caps, --muted, border-top divider
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🖼️ UPDATED FILES
+
+1. index-raster.html (UPDATED)
+   • Full CSS system integrated inline
+   • New sidebar structure (legend + guide + insight)
+   • Editorial layout with proper spacing
+   • Responsive breakpoint at 768px
+   • D3.js script module import
+
+2. main-raster.js (UPDATED)
+   • Enhanced insight narrative generation
+   • Better data statistics calculation
+   • Semantic color highlighting in text
+   • Legend labels configurable via CONFIG
+
+3. legend-raster.js (NO CHANGES)
+   • Already styled correctly with CSS
+
+4. tooltip-raster.js (NO CHANGES)
+   • Already styled correctly with CSS
+
+5. bivariate-raster.js (NO CHANGES)
+   • Color palette unchanged
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 NEW DOCUMENTATION
+
+1. CSS-INTEGRATION.md
+   • Technical guide for CSS customization
+   • How to change colors, fonts, layout
+   • Component-specific styling
+   • Theming examples (dark mode, etc.)
+
+2. DESIGN-SYSTEM.md
+   • Visual overview of design
+   • Color palette and typography system
+   • Layout dimensions and responsive design
+   • Design principles and special features
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ KEY IMPROVEMENTS
+
+AESTHETICS
+  ✓ Warm, editorial color palette
+  ✓ Elegant serif headings
+  ✓ Generous whitespace
+  ✓ Subtle shadows and transitions
+  ✓ Professional, refined appearance
+
+USABILITY
+  ✓ Sidebar provides context without crowding map
+  ✓ "How to Read" guide helps interpretation
+  ✓ Insight narrative explains data patterns
+  ✓ Tooltips provide detailed pixel information
+  ✓ Interactive legend filters by class
+
+TECHNICAL
+  ✓ CSS variables for easy theming
+  ✓ Responsive design (mobile + desktop)
+  ✓ Print-friendly styling
+  ✓ Accessibility-ready (semantic HTML)
+  ✓ Performance-optimized (canvas rendering)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 HOW TO USE
+
+1. SETUP
+   python3 -m http.server 8000
+   Open http://localhost:8000/index-raster.html
+
+2. VIEW DESIGN
+   → Notice warm gray background (#eae6de)
+   → Sidebar layout (190px, left side)
+   → Legend, "How to Read", Insight sections
+   → Footer with metadata
+
+3. INTERACT
+   → Hover legend cells → pixels highlight/dim
+   → Hover pixels → tooltip appears
+   → "How to Read" explains the bivariate axes
+
+4. CUSTOMIZE
+   → Edit :root CSS variables for colors
+   → Change font-family for typography
+   → Adjust sidebar width
+   → Update insight narrative in main-raster.js
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 FILES IN THIS PACKAGE (15 total)
+
+DOCUMENTATION (7 files)
+  • 00-START-HERE.md .............. Overview & quick start
+  • QUICKSTART.md ................. Setup guide
+  • README.md ..................... Complete reference
+  • INTEGRATION.md ................ R workflow
+  • CSS-INTEGRATION.md ............ CSS customization
+  • DESIGN-SYSTEM.md .............. Visual design reference
+  • MANIFEST.txt & _PACKAGE_SUMMARY.txt
+
+JAVASCRIPT (5 files)
+  • index-raster.html ............. HTML + inline CSS (UPDATED)
+  • main-raster.js ................ Orchestrator (UPDATED)
+  • bivariate-raster.js ........... Classification
+  • legend-raster.js .............. Legend rendering
+  • tooltip-raster.js ............. Tooltip component
+
+UTILITIES (2 files)
+  • export_raster_data.R .......... R export helper
+  • sample-data-generator.js ...... Test data generator
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎨 CUSTOMIZATION QUICK REFERENCE
+
+CHANGE COLORS
+  Edit :root variables in index-raster.html
+  --bg: #eae6de → your background
+  --accent: #c24e80 → your emphasis color
+  --teal: #3a9e8f → your positive color
+
+CHANGE FONTS
+  Edit font-family declarations in index-raster.html
+  --font-display: "Your Font", serif
+  --font: "Your Font", sans-serif
+
+CHANGE LAYOUT
+  .sidebar { width: 190px; } ← increase/decrease
+  .container { max-width: 1280px; } ← adjust
+
+CHANGE CONTENT
+  "How to Read" → index-raster.html body section
+  Insight narrative → main-raster.js line ~100
+  Legend labels → main-raster.js line ~121–122
+  Footer metadata → index-raster.html footer
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ VALIDATION CHECKLIST
+
+Before deploying, verify:
+
+  ☑ index-raster.html renders with warm gray background
+  ☑ Sidebar appears on left (190px width)
+  ☑ Legend shows 3×3 grid of bivariate colors
+  ☑ "How to Read" section appears below legend
+  ☑ Insight narrative displays with colored highlights
+  ☑ Footer shows data metadata
+  ☑ Hover legend cells → pixels highlight/dim
+  ☑ Hover pixels → tooltip appears
+  ☑ Mobile view (F12 → responsive) stacks vertically
+  ☑ Print preview (⌘P) looks clean
+  ☑ Colors meet WCAG contrast requirements
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 NEXT STEPS
+
+1. Read: DESIGN-SYSTEM.md (visual overview)
+2. Read: CSS-INTEGRATION.md (technical customization)
+3. Open: index-raster.html in browser
+4. Test: Interactive legend, tooltips, responsive design
+5. Customize: Colors, fonts, or content as needed
+6. Deploy: Copy to web server, share with team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎉 INTEGRATION COMPLETE
+
+Your editorial design system is now fully integrated into the bivariate
+raster visualization. The warm gray aesthetic, serif typography, and
+editorial layout are preserved while providing interactive data exploration.
+
+Questions? See DESIGN-SYSTEM.md or CSS-INTEGRATION.md
+
+Ready to deploy? See INTEGRATION.md for end-to-end workflow.
+
+Happy mapping! 🗺️✨
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

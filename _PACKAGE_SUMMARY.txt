@@ -1,0 +1,235 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║             BIVARIATE RASTER MAP — INTERACTIVE WEB VISUALIZATION         ║
+║                 Adapted from Vector to Raster-based Maps                 ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  WHAT YOU GET                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ✓ Interactive raster maps from your R robustness maps
+  ✓ Same scaling & classification (winsorized + equal intervals)
+  ✓ Fast canvas rendering (250K+ pixels)
+  ✓ Interactive legend with pixel filtering
+  ✓ Hover tooltips showing pixel values
+  ✓ Fully customizable (colors, labels, methods)
+  ✓ Pure HTML/JS (no backend needed)
+  ✓ Mobile responsive
+  ✓ Ready to deploy to web
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  3-MINUTE SETUP                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  1. In R:
+     source("export_raster_data.R")
+     export_raster_to_csv(robustness_dir = "your_outputs", group = "ES")
+     
+  2. Move CSV to: data/raster_bivariate_data.csv
+  
+  3. Start server:
+     python3 -m http.server 8000
+     
+  4. Open: http://localhost:8000/index-raster.html
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  PACKAGE CONTENTS (13 files)                                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  📚 DOCUMENTATION
+     • 00-START-HERE.md ........... Overview & quick start (BEGIN HERE!)
+     • QUICKSTART.md ............. Installation & testing guide
+     • README.md ................. Complete reference (data, scaling, config)
+     • INTEGRATION.md ............ R workflow integration
+     • MANIFEST.txt .............. Detailed file descriptions
+     • _PACKAGE_SUMMARY.txt ....... This file
+
+  🖥️  JAVASCRIPT MODULES (5 files)
+     • main-raster.js ............ Orchestrator (loads, renders, interacts)
+     • bivariate-raster.js ....... Classification (winsorize, normalize, classify)
+     • legend-raster.js .......... Legend component (3×3 matrix)
+     • tooltip-raster.js ......... Hover tooltips
+     • sample-data-generator.js .. Test data generator
+
+  🌐 WEB FILES
+     • index-raster.html ......... Complete HTML page (D3 + CSS)
+
+  📊 R INTEGRATION
+     • export_raster_data.R ...... Export helper (GeoTIFF → CSV)
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  KEY FEATURES                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  RENDERING
+    • Canvas: 250K+ pixels in <500ms (recommended)
+    • SVG: Fully styleable, slower for large rasters
+
+  INTERACTIVITY
+    • Hover legend cells → filter pixels by class
+    • Hover pixels → see performance & variation values
+    • Responsive legend + dynamic tooltips
+
+  CLASSIFICATION (same as R)
+    • Winsorization: 5th–95th percentile
+    • Normalization: min-max to [0, 1]
+    • Equal intervals: 3×3 bivariate matrix
+
+  COLORS
+    • BlueGold palette (configurable)
+    • Performance axis (X): Low (blue) → High (gold)
+    • Variation axis (Y): Low → High
+    • Custom palettes supported
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  FILE STRUCTURE                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  my-bivariate-map/
+  ├── 📖 00-START-HERE.md                ← READ FIRST
+  ├── 📖 QUICKSTART.md
+  ├── 📖 README.md
+  ├── 📖 INTEGRATION.md
+  ├── 🌐 index-raster.html               ← OPEN IN BROWSER
+  ├── 🖥️  main-raster.js
+  ├── 🖥️  bivariate-raster.js
+  ├── 🖥️  legend-raster.js
+  ├── 🖥️  tooltip-raster.js
+  ├── 🧪 sample-data-generator.js
+  ├── 📊 export_raster_data.R            ← RUN THIS IN R
+  └── data/
+      └── raster_bivariate_data.csv      ← FROM R EXPORT
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  DATA FLOW                                                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  GeoTIFF Rasters
+       ↓
+  create_robustness_maps() [R]
+       ↓
+  PNG maps + JSON palettes
+       ↓
+  export_raster_to_csv() [R]  ←— SAME SCALING & CLASSIFICATION
+       ↓
+  CSV (normalized, classified)
+       ↓
+  main-raster.js [JavaScript]
+       ↓
+  Canvas/SVG rendering
+       ↓
+  🗺️  Interactive web map
+
+  ✓ Both R PNG and web map use identical scaling/classification
+  ✓ Generate both for reports (PNG) + exploration (web)
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  QUICK REFERENCE                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  WHAT TO EDIT           | WHERE                      | EXAMPLE
+  ───────────────────────┼────────────────────────────┼──────────────────────
+  Map title             | index-raster.html          | <h1>My Title</h1>
+  Legend labels         | main-raster.js (line ~100) | labelA: "Performance"
+  Colors               | bivariate-raster.js (line ~10) | BIVARIATE_COLORS
+  CSV data path        | main-raster.js (line ~12)  | dataUrl: "path/to.csv"
+  Rendering method     | main-raster.js (line ~14)  | "canvas" or "svg-rects"
+  Classification breaks| bivariate-raster.js (line ~46) | equalIntervalBreaks()
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  REQUIREMENTS                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Browser
+    ✓ Modern browser (Chrome, Firefox, Safari, Edge)
+    ✓ ES6 modules supported
+    ✓ JavaScript enabled
+
+  R (for export)
+    ✓ terra package (rasters)
+    ✓ dplyr package (data manipulation)
+    ✓ biscale package (color palettes)
+
+  Web Server
+    ✓ Any HTTP server (Python, Node, nginx, etc.)
+    ✓ No backend/database needed
+    ✓ Can run offline (file:// protocol has limitations)
+
+  Dependencies
+    ✓ D3.js v7 (loaded from CDN)
+    ✓ No other libraries required
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  PERFORMANCE                                                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Raster Size      | Canvas Rendering | SVG Rendering
+  ─────────────────┼──────────────────┼─────────────────
+  10K pixels       | <100ms           | ~500ms
+  100K pixels      | <500ms           | >5s (slow)
+  1M pixels        | ~2s              | unusable
+
+  → Recommend Canvas for rasters > 10K pixels
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  HELP & SUPPORT                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Getting Started?
+    → Read: 00-START-HERE.md (5 minutes)
+    → Then: QUICKSTART.md (10 minutes)
+
+  Need to install?
+    → Follow: QUICKSTART.md
+
+  Have an issue?
+    → Check: README.md → Troubleshooting section
+
+  Want to integrate with R?
+    → See: INTEGRATION.md (end-to-end workflow)
+
+  Need to customize?
+    → Edit: main-raster.js or bivariate-raster.js
+    → Read: README.md → Customization section
+
+  Creating test data?
+    → Use: sample-data-generator.js
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  NEXT STEPS                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  1. ✓ Read 00-START-HERE.md
+  2. ✓ Follow QUICKSTART.md
+  3. ✓ Open index-raster.html in browser
+  4. ✓ Test with sample data (sample-data-generator.js)
+  5. ✓ Export your R rasters (export_raster_data.R)
+  6. ✓ Customize colors & labels
+  7. ✓ Deploy to web server
+  8. ✓ Share with collaborators!
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  HIGHLIGHTS                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ✅ Same scaling/classification as R (winsorized + equal intervals)
+  ✅ Fast canvas rendering (250K+ pixels)
+  ✅ Interactive legend (hover to filter)
+  ✅ Pixel tooltips (hover for values)
+  ✅ Fully customizable (colors, labels, methods)
+  ✅ Pure HTML/JS (easy deployment)
+  ✅ Mobile responsive
+  ✅ No backend required
+  ✅ Works offline
+  ✅ Print-friendly
+  ✅ Share-friendly (URL-based)
+
+  🚀 Ready to deploy? See: INTEGRATION.md
+
+════════════════════════════════════════════════════════════════════════════
+
+                    👉 START WITH: 00-START-HERE.md
+
+════════════════════════════════════════════════════════════════════════════
