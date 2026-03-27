@@ -20,15 +20,16 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .container {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0.25rem 1.5rem 0.4rem;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -241,6 +242,21 @@ header .subtitle {
   color: var(--text);
 }
 
+.methodology-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  color: var(--text);
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.14rem;
+}
+
+.methodology-link:hover,
+.methodology-link:focus-visible {
+  color: var(--muted);
+}
+
 #map {
   flex: 1;
   min-width: 0;
@@ -376,6 +392,80 @@ header .subtitle {
   letter-spacing: 0.02em;
 }
 
+.methodology-card {
+  display: none;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 1.2rem 1.35rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  scroll-margin-top: 1rem;
+}
+
+.methodology-card:target {
+  display: block;
+}
+
+.methodology-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.methodology-card__eyebrow {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.methodology-card h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.methodology-card__close {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-decoration: underline;
+  text-underline-offset: 0.14rem;
+  white-space: nowrap;
+}
+
+.methodology-card__content {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.methodology-card__content p {
+  margin-top: 0.35rem;
+}
+
+.methodology-card__content ul {
+  margin: 0.85rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.methodology-card__content li+li {
+  margin-top: 0.35rem;
+}
+
+.methodology-card__content a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.14rem;
+}
+
 .error {
   color: var(--accent);
   font-weight: 600;
@@ -402,5 +492,18 @@ header .subtitle {
 
   .container {
     padding: 0.5rem 1rem;
+  }
+
+  .methodology-card {
+    padding: 1rem;
+  }
+
+  .methodology-card__header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .methodology-card h2 {
+    font-size: 1.15rem;
   }
 }

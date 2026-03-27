@@ -85,6 +85,7 @@
             <strong></strong><span class="hl-blue">blue</span></strong> indicates high performance but low stability.
           </p>
 
+          <a class="methodology-link" href="#methodology-card">Learn more about the methodology</a>
 
         </div>
       </div>
@@ -92,6 +93,61 @@
       <!-- Map area -->
       <div id="map"></div>
     </div>
+
+    <section id="methodology-card" class="methodology-card" aria-labelledby="methodology-title">
+      <div class="methodology-card__header">
+        <div>
+          <span class="methodology-card__eyebrow">Methodology</span>
+          <h2 id="methodology-title">How robustness was assessed</h2>
+        </div>
+        <a class="methodology-card__close" href="#">Close</a>
+      </div>
+
+      <div class="methodology-card__content">
+        <p>
+          The maps of robustness were produced from simulations of the provision of ecosystem services and biodiversity
+          between 2025 and 2060 under a wide range of future conditions. These future conditions including five
+          scenarios
+          of future land use change, five scenarios of economic development, three scenarios of demographic change, and
+          three scenarios of climate change, resulting in a total of 225 unique future scenarios. Under these scenarios
+          we simulated eight ecosystem services and the habitat suitability for Swiss National Priority Species (NPA)
+          and species listed under the Swiss Environmental Objectives for Agriculture (UZL). The robustness of ecosystem
+          service provision and biodiversity was then calculated on
+          a per-pixel basis as the performance and stability of that pixel across all future conditions.
+        </p>
+
+        <p>
+          <strong>Performance:</strong> calculated on a per pixel basis as the mean of the cumulative sum of
+          change in ecosystem services and/or biodiversity across all future time steps and all
+          scenario variations. Because cumulative sums are used, both positive and negative
+          changes are included. High performance indicates that, on average across scenarios,
+          an area shows positive development (improvement potential) whereas low performance indicates, at best, no
+          improvement and at worst, declining provision of ecosystem services and/or biodiversity.
+        </p>
+
+        <p>
+          <strong>Stability:</strong> measures risk and resilience and is based on the metric of undesirable deviation
+          (Kwakkel et al.
+          2016). This is the sum of deviations (“regret”) from the median
+          cumulative change for all cases below the median. In other words, stability captures
+          the magnitude of negative outliers (risk of declines) across scenarios. High stability
+          indicates small negative fluctuations from the median, while low stability means that
+          severe drops occur in some scenarios.
+
+        </p>
+
+        <ul>
+          <li>Visit the <a href="https://bern-landscape-change-explorer.ethz.ch/" target="_blank"
+              rel="noopener noreferrer">main project website</a></li>
+          <li>Read the <a href="https://bern-landscape-change-explorer.ethz.ch/data/technischer-bericht_en.pdf"
+              target="_blank" rel="noopener noreferrer">technical report</a> for more details.</li>
+          <li> Read the accompanying <a href="https://doi.org/10.1016/j.jenvman.2025.128395" target="_blank"
+              rel="noopener noreferrer">scientific publication</a>.</li>
+          <li>Access the <a href="https://doi.org/10.5281/zenodo.18327228" target="_blank"
+              rel="noopener noreferrer">data</a>.</li>
+        </ul>
+      </div>
+    </section>
 
   </div> <!-- /.container -->
 
