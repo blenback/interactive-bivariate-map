@@ -107,6 +107,15 @@ header .subtitle {
   flex-shrink: 0;
 }
 
+.how-to-explore {
+  /* add padding above */
+  padding-top: 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 .how-title {
   display: block;
   font-size: 9px;

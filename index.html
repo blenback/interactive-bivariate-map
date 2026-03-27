@@ -24,6 +24,18 @@
     <div class="main-area">
       <!-- Sidebar: Legend + How to Read -->
       <div class="sidebar">
+
+        <!-- How to Explore guidance-->
+        <div class="how-to-explore">
+          <span class="how-title">How to explore</span>
+          <p>Use the buttons above to select whether to display the robustness of ecosystem services,
+            biodiversity metric or both combined. The map
+            will update to show the performance and stability of that metric across all future scenarios. Hovering over
+            the classes in the legend below will focus the map on only those classes and clicking on a class will
+            temporaily focus the map to that class and display the total area (km²) of that class (clicking again on the
+            same class or another class will reset the focus).</p>
+        </div>
+
         <!-- Legend -->
         <div id="legend"></div>
 
@@ -39,7 +51,8 @@
                 <span class="info-box">Performance is calculated on a per-pixel basis as the mean of the cumulative
                   sum of the change in ES and/or BD over all future time points for all scenarios. The use of the
                   cumulative sum captures both positive and negative changes, thus a high value of Performance
-                  indicates that pixels generally display positive changes in ES and/or BD across all scenarios.</span>
+                  indicates that pixels generally display positive changes in ES and/or BD across all
+                  scenarios.</span>
               </span>
             </strong>
             <p>Low on the left, high on the right.</p>
@@ -60,16 +73,19 @@
           </div>
 
           <p class="how-example">
-            <span class="hl-gray">Grey</span> pixels are those that displayed low performance and low stability, while
-            <span class="hl-green">Dark Green</span> were those that displayed high performance and high stability.
+            <strong></strong><span class="hl-gray">Grey</span></strong> pixels are those that displayed low performance
+            and low stability, while
+            <strong></strong><span class="hl-green">Dark Green</span></strong> were those that displayed high
+            performance and high stability.
           </p>
 
           <p class="how-example">
-            <span class="hl-gold">Gold</span> indicates low performance but high stability, while
-            <span class="hl-blue">blue</span> indicates high performance but low stability.
+            <strong></strong><span class="hl-gold">Gold</span></strong> indicates low performance but high stability,
+            while
+            <strong></strong><span class="hl-blue">blue</span></strong> indicates high performance but low stability.
           </p>
 
-          <p class="how-hover">Hover over pixels in the map for details.</p>
+
         </div>
       </div>
 
