@@ -96,32 +96,6 @@ function drawLegend(selector, {
     .attr("class", "legend-label")
     .text((labelB || "Stability") + " -> ");
 
-  // g.append("text")
-  //   .attr("x", 4).attr("y", size + 54)
-  //   .attr("text-anchor", "start")
-  //   .attr("class", "legend-corner")
-  //   .style("font-size", "7px")
-  //   .text("Low performance");
-
-  // g.append("text")
-  //   .attr("x", size - 4).attr("y", size + 54)
-  //   .attr("text-anchor", "end")
-  //   .attr("class", "legend-corner")
-  //   .style("font-size", "7px")
-  //   .text("High performance");
-
-  // g.append("text")
-  //   .attr("x", -34).attr("y", -8)
-  //   .attr("class", "legend-corner")
-  //   .style("font-size", "7px")
-  //   .text("High stability");
-
-  // g.append("text")
-  //   .attr("x", -34).attr("y", size + 8)
-  //   .attr("class", "legend-corner")
-  //   .style("font-size", "7px")
-  //   .text("Low stability");
-
   const ndY = size + 42;
   g.append("rect")
     .attr("x", 0).attr("y", ndY)
